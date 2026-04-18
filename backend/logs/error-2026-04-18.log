@@ -1,0 +1,318 @@
+{
+  "timestamp": "2026-04-18T13:37:44.204Z",
+  "message": "secretOrPrivateKey must have a value",
+  "stack": "Error: secretOrPrivateKey must have a value\n    at module.exports [as sign] (D:\\Projects\\Merkeb_erp\\backend\\node_modules\\jsonwebtoken\\sign.js:111:20)\n    at file:///D:/Projects/Merkeb_erp/backend/routes/authRoutes.js:38:23",
+  "name": "Error",
+  "url": "/api/auth/login",
+  "method": "POST",
+  "body": {
+    "username": "admin",
+    "password": "admin123"
+  },
+  "params": {},
+  "query": {},
+  "headers": {
+    "host": "localhost:5000",
+    "connection": "keep-alive",
+    "content-length": "42",
+    "sec-ch-ua-platform": "\"Windows\"",
+    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
+    "accept": "application/json, text/plain, */*",
+    "sec-ch-ua": "\"Google Chrome\";v=\"147\", \"Not.A/Brand\";v=\"8\", \"Chromium\";v=\"147\"",
+    "content-type": "application/json",
+    "sec-ch-ua-mobile": "?0",
+    "origin": "http://localhost:5173",
+    "sec-fetch-site": "same-site",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-dest": "empty",
+    "referer": "http://localhost:5173/",
+    "accept-encoding": "gzip, deflate, br, zstd",
+    "accept-language": "en-US,en;q=0.9,am;q=0.8"
+  },
+  "ip": "::1"
+}
+---
+{
+  "timestamp": "2026-04-18T13:37:51.897Z",
+  "message": "secretOrPrivateKey must have a value",
+  "stack": "Error: secretOrPrivateKey must have a value\n    at module.exports [as sign] (D:\\Projects\\Merkeb_erp\\backend\\node_modules\\jsonwebtoken\\sign.js:111:20)\n    at file:///D:/Projects/Merkeb_erp/backend/routes/authRoutes.js:38:23",
+  "name": "Error",
+  "url": "/api/auth/login",
+  "method": "POST",
+  "body": {
+    "username": "admin",
+    "password": "admin123"
+  },
+  "params": {},
+  "query": {},
+  "headers": {
+    "host": "localhost:5000",
+    "connection": "keep-alive",
+    "content-length": "42",
+    "sec-ch-ua-platform": "\"Windows\"",
+    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
+    "accept": "application/json, text/plain, */*",
+    "sec-ch-ua": "\"Google Chrome\";v=\"147\", \"Not.A/Brand\";v=\"8\", \"Chromium\";v=\"147\"",
+    "content-type": "application/json",
+    "sec-ch-ua-mobile": "?0",
+    "origin": "http://localhost:5173",
+    "sec-fetch-site": "same-site",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-dest": "empty",
+    "referer": "http://localhost:5173/",
+    "accept-encoding": "gzip, deflate, br, zstd",
+    "accept-language": "en-US,en;q=0.9,am;q=0.8"
+  },
+  "ip": "::1"
+}
+---
+{
+  "timestamp": "2026-04-18T13:38:06.026Z",
+  "message": "secretOrPrivateKey must have a value",
+  "stack": "Error: secretOrPrivateKey must have a value\n    at module.exports [as sign] (D:\\Projects\\Merkeb_erp\\backend\\node_modules\\jsonwebtoken\\sign.js:111:20)\n    at file:///D:/Projects/Merkeb_erp/backend/routes/authRoutes.js:38:23",
+  "name": "Error",
+  "url": "/api/auth/login",
+  "method": "POST",
+  "body": {
+    "username": "admin",
+    "password": "admin123"
+  },
+  "params": {},
+  "query": {},
+  "headers": {
+    "host": "localhost:5000",
+    "connection": "keep-alive",
+    "content-length": "42",
+    "sec-ch-ua-platform": "\"Windows\"",
+    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
+    "accept": "application/json, text/plain, */*",
+    "sec-ch-ua": "\"Google Chrome\";v=\"147\", \"Not.A/Brand\";v=\"8\", \"Chromium\";v=\"147\"",
+    "content-type": "application/json",
+    "sec-ch-ua-mobile": "?0",
+    "origin": "http://localhost:5173",
+    "sec-fetch-site": "same-site",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-dest": "empty",
+    "referer": "http://localhost:5173/",
+    "accept-encoding": "gzip, deflate, br, zstd",
+    "accept-language": "en-US,en;q=0.9,am;q=0.8"
+  },
+  "ip": "::1"
+}
+---
+{
+  "timestamp": "2026-04-18T21:31:07.924Z",
+  "message": "Route not found: PATCH /api/products/69dc9c021a044dad4b473b80/stock",
+  "stack": "Error: Route not found: PATCH /api/products/69dc9c021a044dad4b473b80/stock\n    at file:///D:/Projects/Merkeb_erp/backend/server.js:217:17\n    at Layer.handleRequest (D:\\Projects\\Merkeb_erp\\backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at trimPrefix (D:\\Projects\\Merkeb_erp\\backend\\node_modules\\router\\index.js:342:13)\n    at D:\\Projects\\Merkeb_erp\\backend\\node_modules\\router\\index.js:297:9\n    at processParams (D:\\Projects\\Merkeb_erp\\backend\\node_modules\\router\\index.js:582:12)\n    at next (D:\\Projects\\Merkeb_erp\\backend\\node_modules\\router\\index.js:291:5)\n    at D:\\Projects\\Merkeb_erp\\backend\\node_modules\\router\\index.js:688:15\n    at next (D:\\Projects\\Merkeb_erp\\backend\\node_modules\\router\\index.js:276:14)\n    at Function.handle (D:\\Projects\\Merkeb_erp\\backend\\node_modules\\router\\index.js:186:3)\n    at router (D:\\Projects\\Merkeb_erp\\backend\\node_modules\\router\\index.js:60:12)",
+  "name": "Error",
+  "code": "ROUTE_NOT_FOUND",
+  "url": "/api/products/69dc9c021a044dad4b473b80/stock",
+  "method": "PATCH",
+  "body": {
+    "size": "XL",
+    "stock": 5
+  },
+  "params": {},
+  "query": {},
+  "headers": {
+    "host": "localhost:5000",
+    "connection": "keep-alive",
+    "content-length": "23",
+    "sec-ch-ua-platform": "\"Windows\"",
+    "authorization": "[REDACTED]",
+    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
+    "accept": "application/json, text/plain, */*",
+    "sec-ch-ua": "\"Google Chrome\";v=\"147\", \"Not.A/Brand\";v=\"8\", \"Chromium\";v=\"147\"",
+    "content-type": "application/json",
+    "sec-ch-ua-mobile": "?0",
+    "origin": "http://localhost:5173",
+    "sec-fetch-site": "same-site",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-dest": "empty",
+    "referer": "http://localhost:5173/",
+    "accept-encoding": "gzip, deflate, br, zstd",
+    "accept-language": "en-US,en;q=0.9"
+  },
+  "ip": "::1"
+}
+---
+{
+  "timestamp": "2026-04-18T21:31:07.932Z",
+  "message": "Route not found: PATCH /api/products/69dc9c021a044dad4b473b80/stock",
+  "stack": "Error: Route not found: PATCH /api/products/69dc9c021a044dad4b473b80/stock\n    at file:///D:/Projects/Merkeb_erp/backend/server.js:217:17\n    at Layer.handleRequest (D:\\Projects\\Merkeb_erp\\backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at trimPrefix (D:\\Projects\\Merkeb_erp\\backend\\node_modules\\router\\index.js:342:13)\n    at D:\\Projects\\Merkeb_erp\\backend\\node_modules\\router\\index.js:297:9\n    at processParams (D:\\Projects\\Merkeb_erp\\backend\\node_modules\\router\\index.js:582:12)\n    at next (D:\\Projects\\Merkeb_erp\\backend\\node_modules\\router\\index.js:291:5)\n    at D:\\Projects\\Merkeb_erp\\backend\\node_modules\\router\\index.js:688:15\n    at next (D:\\Projects\\Merkeb_erp\\backend\\node_modules\\router\\index.js:276:14)\n    at Function.handle (D:\\Projects\\Merkeb_erp\\backend\\node_modules\\router\\index.js:186:3)\n    at router (D:\\Projects\\Merkeb_erp\\backend\\node_modules\\router\\index.js:60:12)",
+  "name": "Error",
+  "code": "ROUTE_NOT_FOUND",
+  "url": "/api/products/69dc9c021a044dad4b473b80/stock",
+  "method": "PATCH",
+  "body": {
+    "size": "XL",
+    "stock": 5
+  },
+  "params": {},
+  "query": {},
+  "headers": {
+    "host": "localhost:5000",
+    "connection": "keep-alive",
+    "content-length": "23",
+    "sec-ch-ua-platform": "\"Windows\"",
+    "authorization": "[REDACTED]",
+    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
+    "accept": "application/json, text/plain, */*",
+    "sec-ch-ua": "\"Google Chrome\";v=\"147\", \"Not.A/Brand\";v=\"8\", \"Chromium\";v=\"147\"",
+    "content-type": "application/json",
+    "sec-ch-ua-mobile": "?0",
+    "origin": "http://localhost:5173",
+    "sec-fetch-site": "same-site",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-dest": "empty",
+    "referer": "http://localhost:5173/",
+    "accept-encoding": "gzip, deflate, br, zstd",
+    "accept-language": "en-US,en;q=0.9"
+  },
+  "ip": "::1"
+}
+---
+{
+  "timestamp": "2026-04-18T21:31:10.090Z",
+  "message": "Route not found: PATCH /api/products/69dc9c021a044dad4b473b80/stock",
+  "stack": "Error: Route not found: PATCH /api/products/69dc9c021a044dad4b473b80/stock\n    at file:///D:/Projects/Merkeb_erp/backend/server.js:217:17\n    at Layer.handleRequest (D:\\Projects\\Merkeb_erp\\backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at trimPrefix (D:\\Projects\\Merkeb_erp\\backend\\node_modules\\router\\index.js:342:13)\n    at D:\\Projects\\Merkeb_erp\\backend\\node_modules\\router\\index.js:297:9\n    at processParams (D:\\Projects\\Merkeb_erp\\backend\\node_modules\\router\\index.js:582:12)\n    at next (D:\\Projects\\Merkeb_erp\\backend\\node_modules\\router\\index.js:291:5)\n    at D:\\Projects\\Merkeb_erp\\backend\\node_modules\\router\\index.js:688:15\n    at next (D:\\Projects\\Merkeb_erp\\backend\\node_modules\\router\\index.js:276:14)\n    at Function.handle (D:\\Projects\\Merkeb_erp\\backend\\node_modules\\router\\index.js:186:3)\n    at router (D:\\Projects\\Merkeb_erp\\backend\\node_modules\\router\\index.js:60:12)",
+  "name": "Error",
+  "code": "ROUTE_NOT_FOUND",
+  "url": "/api/products/69dc9c021a044dad4b473b80/stock",
+  "method": "PATCH",
+  "body": {
+    "size": "XL",
+    "stock": 5
+  },
+  "params": {},
+  "query": {},
+  "headers": {
+    "host": "localhost:5000",
+    "connection": "keep-alive",
+    "content-length": "23",
+    "sec-ch-ua-platform": "\"Windows\"",
+    "authorization": "[REDACTED]",
+    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
+    "accept": "application/json, text/plain, */*",
+    "sec-ch-ua": "\"Google Chrome\";v=\"147\", \"Not.A/Brand\";v=\"8\", \"Chromium\";v=\"147\"",
+    "content-type": "application/json",
+    "sec-ch-ua-mobile": "?0",
+    "origin": "http://localhost:5173",
+    "sec-fetch-site": "same-site",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-dest": "empty",
+    "referer": "http://localhost:5173/",
+    "accept-encoding": "gzip, deflate, br, zstd",
+    "accept-language": "en-US,en;q=0.9"
+  },
+  "ip": "::1"
+}
+---
+{
+  "timestamp": "2026-04-18T21:31:10.093Z",
+  "message": "Route not found: PATCH /api/products/69dc9c021a044dad4b473b80/stock",
+  "stack": "Error: Route not found: PATCH /api/products/69dc9c021a044dad4b473b80/stock\n    at file:///D:/Projects/Merkeb_erp/backend/server.js:217:17\n    at Layer.handleRequest (D:\\Projects\\Merkeb_erp\\backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at trimPrefix (D:\\Projects\\Merkeb_erp\\backend\\node_modules\\router\\index.js:342:13)\n    at D:\\Projects\\Merkeb_erp\\backend\\node_modules\\router\\index.js:297:9\n    at processParams (D:\\Projects\\Merkeb_erp\\backend\\node_modules\\router\\index.js:582:12)\n    at next (D:\\Projects\\Merkeb_erp\\backend\\node_modules\\router\\index.js:291:5)\n    at D:\\Projects\\Merkeb_erp\\backend\\node_modules\\router\\index.js:688:15\n    at next (D:\\Projects\\Merkeb_erp\\backend\\node_modules\\router\\index.js:276:14)\n    at Function.handle (D:\\Projects\\Merkeb_erp\\backend\\node_modules\\router\\index.js:186:3)\n    at router (D:\\Projects\\Merkeb_erp\\backend\\node_modules\\router\\index.js:60:12)",
+  "name": "Error",
+  "code": "ROUTE_NOT_FOUND",
+  "url": "/api/products/69dc9c021a044dad4b473b80/stock",
+  "method": "PATCH",
+  "body": {
+    "size": "XL",
+    "stock": 5
+  },
+  "params": {},
+  "query": {},
+  "headers": {
+    "host": "localhost:5000",
+    "connection": "keep-alive",
+    "content-length": "23",
+    "sec-ch-ua-platform": "\"Windows\"",
+    "authorization": "[REDACTED]",
+    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
+    "accept": "application/json, text/plain, */*",
+    "sec-ch-ua": "\"Google Chrome\";v=\"147\", \"Not.A/Brand\";v=\"8\", \"Chromium\";v=\"147\"",
+    "content-type": "application/json",
+    "sec-ch-ua-mobile": "?0",
+    "origin": "http://localhost:5173",
+    "sec-fetch-site": "same-site",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-dest": "empty",
+    "referer": "http://localhost:5173/",
+    "accept-encoding": "gzip, deflate, br, zstd",
+    "accept-language": "en-US,en;q=0.9"
+  },
+  "ip": "::1"
+}
+---
+{
+  "timestamp": "2026-04-18T21:31:31.094Z",
+  "message": "Route not found: PATCH /api/products/69dc9c021a044dad4b473b80/stock",
+  "stack": "Error: Route not found: PATCH /api/products/69dc9c021a044dad4b473b80/stock\n    at file:///D:/Projects/Merkeb_erp/backend/server.js:217:17\n    at Layer.handleRequest (D:\\Projects\\Merkeb_erp\\backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at trimPrefix (D:\\Projects\\Merkeb_erp\\backend\\node_modules\\router\\index.js:342:13)\n    at D:\\Projects\\Merkeb_erp\\backend\\node_modules\\router\\index.js:297:9\n    at processParams (D:\\Projects\\Merkeb_erp\\backend\\node_modules\\router\\index.js:582:12)\n    at next (D:\\Projects\\Merkeb_erp\\backend\\node_modules\\router\\index.js:291:5)\n    at D:\\Projects\\Merkeb_erp\\backend\\node_modules\\router\\index.js:688:15\n    at next (D:\\Projects\\Merkeb_erp\\backend\\node_modules\\router\\index.js:276:14)\n    at Function.handle (D:\\Projects\\Merkeb_erp\\backend\\node_modules\\router\\index.js:186:3)\n    at router (D:\\Projects\\Merkeb_erp\\backend\\node_modules\\router\\index.js:60:12)",
+  "name": "Error",
+  "code": "ROUTE_NOT_FOUND",
+  "url": "/api/products/69dc9c021a044dad4b473b80/stock",
+  "method": "PATCH",
+  "body": {
+    "size": "XL",
+    "stock": 5
+  },
+  "params": {},
+  "query": {},
+  "headers": {
+    "host": "localhost:5000",
+    "connection": "keep-alive",
+    "content-length": "23",
+    "sec-ch-ua-platform": "\"Windows\"",
+    "authorization": "[REDACTED]",
+    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
+    "accept": "application/json, text/plain, */*",
+    "sec-ch-ua": "\"Google Chrome\";v=\"147\", \"Not.A/Brand\";v=\"8\", \"Chromium\";v=\"147\"",
+    "content-type": "application/json",
+    "sec-ch-ua-mobile": "?0",
+    "origin": "http://localhost:5173",
+    "sec-fetch-site": "same-site",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-dest": "empty",
+    "referer": "http://localhost:5173/",
+    "accept-encoding": "gzip, deflate, br, zstd",
+    "accept-language": "en-US,en;q=0.9"
+  },
+  "ip": "::1"
+}
+---
+{
+  "timestamp": "2026-04-18T21:31:31.098Z",
+  "message": "Route not found: PATCH /api/products/69dc9c021a044dad4b473b80/stock",
+  "stack": "Error: Route not found: PATCH /api/products/69dc9c021a044dad4b473b80/stock\n    at file:///D:/Projects/Merkeb_erp/backend/server.js:217:17\n    at Layer.handleRequest (D:\\Projects\\Merkeb_erp\\backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at trimPrefix (D:\\Projects\\Merkeb_erp\\backend\\node_modules\\router\\index.js:342:13)\n    at D:\\Projects\\Merkeb_erp\\backend\\node_modules\\router\\index.js:297:9\n    at processParams (D:\\Projects\\Merkeb_erp\\backend\\node_modules\\router\\index.js:582:12)\n    at next (D:\\Projects\\Merkeb_erp\\backend\\node_modules\\router\\index.js:291:5)\n    at D:\\Projects\\Merkeb_erp\\backend\\node_modules\\router\\index.js:688:15\n    at next (D:\\Projects\\Merkeb_erp\\backend\\node_modules\\router\\index.js:276:14)\n    at Function.handle (D:\\Projects\\Merkeb_erp\\backend\\node_modules\\router\\index.js:186:3)\n    at router (D:\\Projects\\Merkeb_erp\\backend\\node_modules\\router\\index.js:60:12)",
+  "name": "Error",
+  "code": "ROUTE_NOT_FOUND",
+  "url": "/api/products/69dc9c021a044dad4b473b80/stock",
+  "method": "PATCH",
+  "body": {
+    "size": "XL",
+    "stock": 5
+  },
+  "params": {},
+  "query": {},
+  "headers": {
+    "host": "localhost:5000",
+    "connection": "keep-alive",
+    "content-length": "23",
+    "sec-ch-ua-platform": "\"Windows\"",
+    "authorization": "[REDACTED]",
+    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
+    "accept": "application/json, text/plain, */*",
+    "sec-ch-ua": "\"Google Chrome\";v=\"147\", \"Not.A/Brand\";v=\"8\", \"Chromium\";v=\"147\"",
+    "content-type": "application/json",
+    "sec-ch-ua-mobile": "?0",
+    "origin": "http://localhost:5173",
+    "sec-fetch-site": "same-site",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-dest": "empty",
+    "referer": "http://localhost:5173/",
+    "accept-encoding": "gzip, deflate, br, zstd",
+    "accept-language": "en-US,en;q=0.9"
+  },
+  "ip": "::1"
+}
+---

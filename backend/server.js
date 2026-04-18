@@ -160,8 +160,8 @@ app.get("/", (req, res) => {
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {
-  res.json({ 
-    status: "OK", 
+  res.json({
+    status: "OK",
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development'
   });
@@ -191,12 +191,12 @@ app.get("/api/test-product", async (req, res, next) => {
       price: 1000,
       sizes: [{ size: "M", stock: 5 }]
     });
-    
-    logAuth('TEST_PRODUCT_CREATED', { 
+
+    logAuth('TEST_PRODUCT_CREATED', {
       productId: product._id,
-      userId: req.user.id 
+      userId: req.user.id
     }, req);
-    
+
     res.json(product);
   } catch (error) {
     logError(error, req);

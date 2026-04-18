@@ -14,7 +14,6 @@ import {
     Paper,
     Skeleton,
     Stack,
-    Badge,
     useTheme,
     alpha,
     useMediaQuery,
@@ -42,7 +41,8 @@ import {
     NotificationsActive,
     Assessment,
     Analytics,
-    TrendingDown
+    TrendingDown,
+    MoreHoriz
 } from "@mui/icons-material";
 import API from "../api/axios";
 import { useNavigate } from "react-router-dom";
@@ -139,45 +139,39 @@ const Dashboard = () => {
         return `${hours}h ago`;
     };
 
-    // Redesigned Stat Cards Configuration
-    const statCards = [
+    // Stats configuration for the clean list
+    const statItems = [
         {
             label: "Total Orders",
             value: formatNumber(stats?.totalOrders),
             icon: ShoppingCart,
             color: theme.palette.primary.main,
-            bgColor: alpha(theme.palette.primary.main, 0.08),
             trend: { value: 12.5, isUp: true },
-            subtitle: "All time orders"
+            accent: theme.palette.primary.main
         },
         {
             label: "Today's Orders",
             value: formatNumber(stats?.todayOrders),
             icon: TrendingUp,
             color: theme.palette.success.main,
-            bgColor: alpha(theme.palette.success.main, 0.08),
             trend: { value: 8.2, isUp: true },
-            subtitle: "vs yesterday"
+            accent: theme.palette.success.main
         },
         {
-            label: "Revenue Today",
+            label: "Revenue",
             value: `₹${formatCurrency(stats?.revenue)}`,
             icon: AttachMoney,
             color: theme.palette.warning.main,
-            bgColor: alpha(theme.palette.warning.main, 0.08),
             trend: { value: 15.3, isUp: true },
-            subtitle: "Daily revenue"
+            accent: theme.palette.warning.main
         },
         {
-            label: "Pending Orders",
+            label: "Pending",
             value: formatNumber(stats?.pendingOrders),
             icon: Schedule,
             color: stats?.pendingOrders > 10 ? theme.palette.error.main : theme.palette.info.main,
-            bgColor: stats?.pendingOrders > 10
-                ? alpha(theme.palette.error.main, 0.08)
-                : alpha(theme.palette.info.main, 0.08),
             trend: stats?.pendingOrders > 10 ? { value: 5, isUp: true } : { value: 2, isUp: false },
-            subtitle: "Need attention",
+            accent: stats?.pendingOrders > 10 ? theme.palette.error.main : theme.palette.info.main,
             alert: stats?.pendingOrders > 10
         }
     ];
@@ -193,13 +187,7 @@ const Dashboard = () => {
                     <Skeleton variant="circular" width={40} height={40} />
                 </Box>
                 <Skeleton variant="rounded" height={60} sx={{ mb: 3 }} />
-                <Grid container spacing={2} sx={{ mb: 3 }}>
-                    {[1, 2, 3, 4].map((i) => (
-                        <Grid item xs={6} md={3} key={i}>
-                            <Skeleton variant="rounded" height={isMobile ? 100 : 120} />
-                        </Grid>
-                    ))}
-                </Grid>
+                <Skeleton variant="rounded" height={isMobile ? 100 : 80} sx={{ mb: 3 }} />
                 <Skeleton variant="rounded" height={isMobile ? 180 : 200} sx={{ mb: 3 }} />
                 <Skeleton variant="rounded" height={200} sx={{ mb: 3 }} />
                 <Skeleton variant="rounded" height={200} />
@@ -311,7 +299,7 @@ const Dashboard = () => {
                                 mb: 3,
                                 bgcolor: alpha(theme.palette.primary.main, 0.02),
                                 border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-                                borderRadius: 2
+                                borderRadius: 3
                             }}
                         >
                             <Stack
@@ -339,7 +327,7 @@ const Dashboard = () => {
                                         onClick={() => navigate('/quick-order')}
                                         sx={{
                                             flex: { xs: 1, sm: 'none' },
-                                            borderRadius: 2,
+                                            borderRadius: 2.5,
                                             textTransform: 'none',
                                             boxShadow: 'none',
                                             '&:hover': {
@@ -356,7 +344,7 @@ const Dashboard = () => {
                                         onClick={() => navigate('/orders')}
                                         sx={{
                                             flex: { xs: 1, sm: 'none' },
-                                            borderRadius: 2,
+                                            borderRadius: 2.5,
                                             textTransform: 'none'
                                         }}
                                     >
@@ -369,7 +357,7 @@ const Dashboard = () => {
                                         onClick={() => navigate('/inventory')}
                                         sx={{
                                             flex: { xs: 1, sm: 'none' },
-                                            borderRadius: 2,
+                                            borderRadius: 2.5,
                                             textTransform: 'none'
                                         }}
                                     >
@@ -382,7 +370,7 @@ const Dashboard = () => {
                                             startIcon={<Analytics />}
                                             onClick={() => navigate('/analytics')}
                                             sx={{
-                                                borderRadius: 2,
+                                                borderRadius: 2.5,
                                                 textTransform: 'none'
                                             }}
                                         >
@@ -394,149 +382,162 @@ const Dashboard = () => {
                         </Paper>
                     </Zoom>
 
-                    {/* Redesigned Stats Cards */}
-                    <Grid container spacing={2.5} sx={{ mb: 3 }}>
-                        {statCards.map((card, index) => {
-                            const IconComponent = card.icon;
-                            return (
-                                <Grid item xs={6} md={3} key={index}>
-                                    <Zoom in={true} timeout={700 + (index * 100)}>
-                                        <Card
-                                            elevation={0}
-                                            sx={{
-                                                height: '100%',
-                                                borderRadius: 3,
-                                                border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-                                                transition: 'all 0.3s ease',
-                                                position: 'relative',
-                                                overflow: 'hidden',
-                                                '&:hover': {
-                                                    borderColor: alpha(card.color, 0.3),
-                                                    boxShadow: `0 4px 20px ${alpha(card.color, 0.15)}`,
-                                                    transform: 'translateY(-2px)'
-                                                },
-                                                ...(card.alert && {
-                                                    borderLeft: `4px solid ${theme.palette.error.main}`,
-                                                    animation: 'pulse 2s infinite',
-                                                    '@keyframes pulse': {
-                                                        '0%': {
-                                                            boxShadow: `0 0 0 0 ${alpha(theme.palette.error.main, 0.4)}`
-                                                        },
-                                                        '70%': {
-                                                            boxShadow: `0 0 0 6px ${alpha(theme.palette.error.main, 0)}`
-                                                        },
-                                                        '100%': {
-                                                            boxShadow: `0 0 0 0 ${alpha(theme.palette.error.main, 0)}`
+                    {/* Clean Stats List - Redesigned */}
+                    <Fade in={true} timeout={700}>
+                        <Paper
+                            elevation={0}
+                            sx={{
+                                mb: 3,
+                                borderRadius: 3,
+                                border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                                overflow: 'hidden',
+                                bgcolor: alpha(theme.palette.background.paper, 0.8),
+                                backdropFilter: 'blur(8px)'
+                            }}
+                        >
+                            <Box
+                                sx={{
+                                    display: 'flex',
+                                    flexDirection: { xs: 'column', md: 'row' },
+                                    '& > *': {
+                                        flex: 1,
+                                        borderBottom: { xs: `1px solid ${alpha(theme.palette.divider, 0.08)}`, md: 'none' },
+                                        borderRight: { md: `1px solid ${alpha(theme.palette.divider, 0.08)}` },
+                                        '&:last-child': {
+                                            borderBottom: 'none',
+                                            borderRight: 'none'
+                                        }
+                                    }
+                                }}
+                            >
+                                {statItems.map((item, index) => {
+                                    const IconComponent = item.icon;
+                                    return (
+                                        <Zoom in={true} timeout={700 + (index * 100)} key={index}>
+                                            <Box
+                                                sx={{
+                                                    p: { xs: 2, sm: 2.5 },
+                                                    transition: 'all 0.2s ease',
+                                                    position: 'relative',
+                                                    '&:hover': {
+                                                        bgcolor: alpha(item.accent, 0.03)
+                                                    },
+                                                    ...(item.alert && {
+                                                        '&::before': {
+                                                            content: '""',
+                                                            position: 'absolute',
+                                                            left: 0,
+                                                            top: 0,
+                                                            bottom: 0,
+                                                            width: 3,
+                                                            bgcolor: 'error.main',
+                                                            borderTopLeftRadius: 3,
+                                                            borderBottomLeftRadius: 3
                                                         }
-                                                    }
-                                                })
-                                            }}
-                                        >
-                                            <CardContent sx={{
-                                                p: { xs: 2, sm: 2.5 },
-                                                '&:last-child': { pb: { xs: 2, sm: 2.5 } }
-                                            }}>
-                                                {/* Header with Icon and Trend */}
-                                                <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
+                                                    })
+                                                }}
+                                            >
+                                                <Stack direction="row" alignItems="center" spacing={2}>
+                                                    {/* Icon Container */}
                                                     <Box
                                                         sx={{
                                                             width: 48,
                                                             height: 48,
-                                                            borderRadius: 2,
+                                                            borderRadius: 2.5,
                                                             display: 'flex',
                                                             alignItems: 'center',
                                                             justifyContent: 'center',
-                                                            bgcolor: card.bgColor,
-                                                            color: card.color,
-                                                            transition: 'all 0.3s ease'
+                                                            bgcolor: alpha(item.color, 0.08),
+                                                            color: item.color,
+                                                            flexShrink: 0
                                                         }}
                                                     >
                                                         <IconComponent sx={{ fontSize: 24 }} />
                                                     </Box>
 
-                                                    <Chip
-                                                        icon={card.trend.isUp ?
-                                                            <ArrowUpward sx={{ fontSize: 14 }} /> :
-                                                            <ArrowDownward sx={{ fontSize: 14 }} />
-                                                        }
-                                                        label={`${card.trend.value}%`}
-                                                        size="small"
+                                                    {/* Content */}
+                                                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                                                        <Stack direction="row" alignItems="baseline" spacing={1}>
+                                                            <Typography
+                                                                variant="h5"
+                                                                fontWeight="bold"
+                                                                fontSize={{ xs: '1.35rem', sm: '1.5rem', md: '1.6rem' }}
+                                                                sx={{ lineHeight: 1.2 }}
+                                                            >
+                                                                {item.value}
+                                                            </Typography>
+                                                            <Chip
+                                                                icon={item.trend.isUp ?
+                                                                    <ArrowUpward sx={{ fontSize: 12 }} /> :
+                                                                    <ArrowDownward sx={{ fontSize: 12 }} />
+                                                                }
+                                                                label={`${item.trend.value}%`}
+                                                                size="small"
+                                                                sx={{
+                                                                    height: 20,
+                                                                    bgcolor: item.trend.isUp
+                                                                        ? alpha(theme.palette.success.main, 0.1)
+                                                                        : alpha(theme.palette.error.main, 0.1),
+                                                                    color: item.trend.isUp
+                                                                        ? theme.palette.success.main
+                                                                        : theme.palette.error.main,
+                                                                    fontSize: '0.65rem',
+                                                                    fontWeight: 600,
+                                                                    '& .MuiChip-icon': {
+                                                                        ml: 0.25,
+                                                                        mr: -0.25
+                                                                    },
+                                                                    '& .MuiChip-label': {
+                                                                        px: 0.75
+                                                                    }
+                                                                }}
+                                                            />
+                                                        </Stack>
+                                                        <Typography
+                                                            variant="body2"
+                                                            color="text.secondary"
+                                                            fontWeight={500}
+                                                            fontSize={{ xs: '0.75rem', sm: '0.8rem' }}
+                                                            sx={{ mt: 0.25 }}
+                                                        >
+                                                            {item.label}
+                                                            {item.alert && (
+                                                                <Box
+                                                                    component="span"
+                                                                    sx={{
+                                                                        ml: 1,
+                                                                        display: 'inline-flex',
+                                                                        alignItems: 'center',
+                                                                        color: 'error.main',
+                                                                        fontSize: '0.65rem',
+                                                                        fontWeight: 600
+                                                                    }}
+                                                                >
+                                                                    <Circle sx={{ fontSize: 6, mr: 0.5 }} />
+                                                                    ATTENTION
+                                                                </Box>
+                                                            )}
+                                                        </Typography>
+                                                    </Box>
+
+                                                    {/* Action Arrow (subtle) */}
+                                                    <MoreHoriz
                                                         sx={{
-                                                            bgcolor: card.trend.isUp
-                                                                ? alpha(theme.palette.success.main, 0.1)
-                                                                : alpha(theme.palette.error.main, 0.1),
-                                                            color: card.trend.isUp
-                                                                ? theme.palette.success.main
-                                                                : theme.palette.error.main,
-                                                            fontWeight: 600,
-                                                            fontSize: '0.75rem',
-                                                            height: 24,
-                                                            '& .MuiChip-icon': {
-                                                                ml: 0.5,
-                                                                mr: -0.25
-                                                            }
+                                                            fontSize: 20,
+                                                            color: alpha(theme.palette.text.secondary, 0.3),
+                                                            opacity: 0,
+                                                            transition: 'opacity 0.2s ease',
+                                                            '&:hover': { opacity: 1 }
                                                         }}
                                                     />
-                                                </Box>
-
-                                                {/* Value */}
-                                                <Typography
-                                                    variant="h4"
-                                                    fontWeight="bold"
-                                                    fontSize={{ xs: '1.5rem', sm: '1.75rem', md: '2rem' }}
-                                                    sx={{
-                                                        mb: 0.5,
-                                                        lineHeight: 1.2,
-                                                        color: 'text.primary'
-                                                    }}
-                                                >
-                                                    {card.value}
-                                                </Typography>
-
-                                                {/* Label and Subtitle */}
-                                                <Typography
-                                                    variant="body2"
-                                                    fontWeight={500}
-                                                    color="text.primary"
-                                                    sx={{ mb: 0.5 }}
-                                                >
-                                                    {card.label}
-                                                </Typography>
-
-                                                <Typography
-                                                    variant="caption"
-                                                    color="text.secondary"
-                                                    sx={{
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: 0.5
-                                                    }}
-                                                >
-                                                    {card.subtitle}
-                                                    {card.alert && (
-                                                        <Chip
-                                                            label="!"
-                                                            size="small"
-                                                            color="error"
-                                                            sx={{
-                                                                height: 16,
-                                                                width: 16,
-                                                                ml: 1,
-                                                                '& .MuiChip-label': {
-                                                                    px: 0,
-                                                                    fontWeight: 'bold'
-                                                                }
-                                                            }}
-                                                        />
-                                                    )}
-                                                </Typography>
-                                            </CardContent>
-                                        </Card>
-                                    </Zoom>
-                                </Grid>
-                            );
-                        })}
-                    </Grid>
+                                                </Stack>
+                                            </Box>
+                                        </Zoom>
+                                    );
+                                })}
+                            </Box>
+                        </Paper>
+                    </Fade>
 
                     {/* Profit Overview - Full Width */}
                     <Fade in={true} timeout={900}>
@@ -659,11 +660,11 @@ const Dashboard = () => {
                                         variant="determinate"
                                         value={Math.min((profit?.profit / (profit?.totalRevenue || 1)) * 100, 100)}
                                         sx={{
-                                            height: 10,
-                                            borderRadius: 5,
+                                            height: 8,
+                                            borderRadius: 4,
                                             bgcolor: alpha(theme.palette.primary.main, 0.08),
                                             '& .MuiLinearProgress-bar': {
-                                                borderRadius: 5,
+                                                borderRadius: 4,
                                                 background: `linear-gradient(90deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.light} 100%)`
                                             }
                                         }}
