@@ -9,6 +9,8 @@ import orderRoutes from "./routes/orderRoutes.js";
 import analyticsRoutes from "./routes/analyticsRoutes.js";
 import inventoryRoutes from "./routes/inventoryRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
+import authRoutes from "./routes/authRoutes.js";
+import { authenticateToken } from "./middleware/auth.js";
 import fs from "fs";
 import path from "path";
 
@@ -82,13 +84,39 @@ const logError = (error, req = null) => {
   return logEntry;
 };
 
+// Custom logger for authentication events
+const logAuth = (type, data, req = null) => {
+  const timestamp = new Date().toISOString();
+  const logEntry = {
+    timestamp,
+    type,
+    data,
+    ip: req?.ip || req?.connection?.remoteAddress,
+    userAgent: req?.headers?.['user-agent']
+  };
+
+  console.log('\x1b[35m%s\x1b[0m', `[${timestamp}] AUTH: ${type}`, data);
+
+  // Write to auth log file
+  const logFileName = `auth-${new Date().toISOString().split('T')[0]}.log`;
+  const logFilePath = path.join(logsDir, logFileName);
+
+  fs.appendFileSync(
+    logFilePath,
+    JSON.stringify(logEntry, null, 2) + '\n---\n',
+    'utf8'
+  );
+};
+
 // Request logging middleware
 app.use((req, res, next) => {
   const startTime = Date.now();
   const { method, url } = req;
 
-  // Log request
-  console.log('\x1b[32m%s\x1b[0m', `[${new Date().toISOString()}] ${method} ${url}`);
+  // Skip logging for health checks or static files if needed
+  if (url !== '/favicon.ico') {
+    console.log('\x1b[32m%s\x1b[0m', `[${new Date().toISOString()}] ${method} ${url}`);
+  }
 
   // Capture response
   const originalJson = res.json;
@@ -96,13 +124,17 @@ app.use((req, res, next) => {
 
   res.json = function (data) {
     const duration = Date.now() - startTime;
-    console.log('\x1b[32m%s\x1b[0m', `[${new Date().toISOString()}] ${method} ${url} - ${res.statusCode} (${duration}ms)`);
+    if (url !== '/favicon.ico') {
+      console.log('\x1b[32m%s\x1b[0m', `[${new Date().toISOString()}] ${method} ${url} - ${res.statusCode} (${duration}ms)`);
+    }
     return originalJson.call(this, data);
   };
 
   res.send = function (data) {
     const duration = Date.now() - startTime;
-    console.log('\x1b[32m%s\x1b[0m', `[${new Date().toISOString()}] ${method} ${url} - ${res.statusCode} (${duration}ms)`);
+    if (url !== '/favicon.ico') {
+      console.log('\x1b[32m%s\x1b[0m', `[${new Date().toISOString()}] ${method} ${url} - ${res.statusCode} (${duration}ms)`);
+    }
     return originalSend.call(this, data);
   };
 
@@ -121,7 +153,28 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Routes
+// Public routes (no authentication required)
+app.get("/", (req, res) => {
+  res.send("API Running...");
+});
+
+// Health check endpoint
+app.get("/api/health", (req, res) => {
+  res.json({ 
+    status: "OK", 
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+
+// Auth routes (public)
+app.use("/api/auth", authRoutes);
+
+// ===== PROTECTED ROUTES =====
+// All routes below this middleware require authentication
+app.use("/api", authenticateToken);
+
+// Protected API routes
 app.use("/api/products", productRoutes);
 app.use("/api/customers", customerRoutes);
 app.use("/api/orders", orderRoutes);
@@ -129,13 +182,8 @@ app.use("/api/analytics", analyticsRoutes);
 app.use("/api/inventory", inventoryRoutes);
 app.use("/api/notifications", notificationRoutes);
 
-// Basic route
-app.get("/", (req, res) => {
-  res.send("API Running...");
-});
-
-// Test route with error handling
-app.get("/test-product", async (req, res, next) => {
+// Test route with error handling (protected)
+app.get("/api/test-product", async (req, res, next) => {
   try {
     const product = await Product.create({
       name: "Test Jersey",
@@ -143,11 +191,25 @@ app.get("/test-product", async (req, res, next) => {
       price: 1000,
       sizes: [{ size: "M", stock: 5 }]
     });
+    
+    logAuth('TEST_PRODUCT_CREATED', { 
+      productId: product._id,
+      userId: req.user.id 
+    }, req);
+    
     res.json(product);
   } catch (error) {
     logError(error, req);
     next(error);
   }
+});
+
+// Get current user info (protected)
+app.get("/api/me", (req, res) => {
+  res.json({
+    user: req.user,
+    message: "Authenticated user information"
+  });
 });
 
 // 404 handler
@@ -168,6 +230,7 @@ app.use((err, req, res, next) => {
   if (err.name === 'ValidationError') {
     const errors = Object.values(err.errors).map(e => e.message);
     return res.status(400).json({
+      success: false,
       message: "Validation Error",
       errors
     });
@@ -177,6 +240,7 @@ app.use((err, req, res, next) => {
   if (err.code === 11000) {
     const field = Object.keys(err.keyPattern)[0];
     return res.status(400).json({
+      success: false,
       message: `Duplicate value for ${field}`,
       field
     });
@@ -185,6 +249,7 @@ app.use((err, req, res, next) => {
   // Mongoose cast error (invalid ID)
   if (err.name === 'CastError') {
     return res.status(400).json({
+      success: false,
       message: `Invalid ${err.path}: ${err.value}`,
       field: err.path
     });
@@ -193,19 +258,38 @@ app.use((err, req, res, next) => {
   // JWT errors
   if (err.name === 'JsonWebTokenError') {
     return res.status(401).json({
-      message: "Invalid token"
+      success: false,
+      message: "Invalid token. Please login again."
     });
   }
 
   if (err.name === 'TokenExpiredError') {
     return res.status(401).json({
-      message: "Token expired"
+      success: false,
+      message: "Token expired. Please login again."
+    });
+  }
+
+  // Authentication errors
+  if (err.status === 401) {
+    return res.status(401).json({
+      success: false,
+      message: err.message || "Authentication required"
+    });
+  }
+
+  // Authorization errors
+  if (err.status === 403) {
+    return res.status(403).json({
+      success: false,
+      message: err.message || "Access forbidden"
     });
   }
 
   // Default error response
   const statusCode = err.status || err.statusCode || 500;
   res.status(statusCode).json({
+    success: false,
     message: err.message || "Something went wrong!",
     ...(process.env.NODE_ENV === "development" && {
       stack: err.stack,
@@ -222,7 +306,9 @@ process.on('uncaughtException', (error) => {
   console.error('='.repeat(80) + '\n');
 
   // Graceful shutdown
-  process.exit(1);
+  setTimeout(() => {
+    process.exit(1);
+  }, 1000);
 });
 
 // Handle unhandled promise rejections
@@ -235,21 +321,29 @@ process.on('unhandledRejection', (reason, promise) => {
   console.error('='.repeat(80) + '\n');
 
   // Graceful shutdown
-  process.exit(1);
+  setTimeout(() => {
+    process.exit(1);
+  }, 1000);
 });
 
 // Handle SIGTERM
 process.on('SIGTERM', () => {
   console.log('\x1b[33m%s\x1b[0m', 'SIGTERM signal received: closing HTTP server');
-  process.exit(0);
+  server.close(() => {
+    console.log('\x1b[32m%s\x1b[0m', 'HTTP server closed');
+    process.exit(0);
+  });
 });
 
 // Start server
 const PORT = process.env.PORT || 5000;
 const server = app.listen(PORT, () => {
+  console.log('\n' + '='.repeat(80));
   console.log('\x1b[32m%s\x1b[0m', `✓ Server running on port ${PORT}`);
   console.log('\x1b[36m%s\x1b[0m', `✓ Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log('\x1b[36m%s\x1b[0m', `✓ Logs directory: ${logsDir}\n`);
+  console.log('\x1b[36m%s\x1b[0m', `✓ Logs directory: ${logsDir}`);
+  console.log('\x1b[33m%s\x1b[0m', `✓ Authentication: ${process.env.JWT_SECRET ? 'ENABLED' : 'DISABLED - Set JWT_SECRET in .env'}`);
+  console.log('='.repeat(80) + '\n');
 });
 
 // Handle server errors
@@ -264,4 +358,5 @@ server.on('error', (error) => {
   }
 });
 
-export { app, logError };
+// Export for testing or external use
+export { app, logError, logAuth };

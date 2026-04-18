@@ -2,32 +2,38 @@ import React, { useEffect, useState, useMemo } from "react";
 import {
     Box,
     Typography,
-    Card,
-    CardContent,
     Grid,
     Button,
     Chip,
     Tabs,
     Tab,
-    Stack,
     TextField,
     InputAdornment,
     Paper,
     Avatar,
     IconButton,
     Badge,
-    Divider,
     Dialog,
     DialogTitle,
     DialogContent,
     DialogActions,
-    Select,
-    MenuItem,
     FormControl,
     InputLabel,
+    Select,
+    MenuItem,
     alpha,
     useTheme,
-    useMediaQuery
+    useMediaQuery,
+    Snackbar,
+    Alert,
+    List,
+    ListItem,
+    ListItemText,
+    ListItemAvatar,
+    ListItemSecondaryAction,
+    Divider,
+    Tooltip,
+    ButtonGroup
 } from "@mui/material";
 import {
     Search as SearchIcon,
@@ -37,9 +43,12 @@ import {
     Receipt as ReceiptIcon,
     LocalShipping as ShippingIcon,
     CheckCircle as CheckCircleIcon,
-    MoreVert as MoreVertIcon,
-    FilterList as FilterIcon,
-    Close as CloseIcon
+    Close as CloseIcon,
+    Edit as EditIcon,
+    Delete as DeleteIcon,
+    Save as SaveIcon,
+    ChevronRight as ChevronRightIcon,
+    Check as CheckIcon
 } from "@mui/icons-material";
 import API from "../api/axios";
 
@@ -57,10 +66,32 @@ const statusIcons = {
     delivered: <InventoryIcon />
 };
 
+// Action button configurations for each status
+const statusActions = {
+    pending: {
+        next: "confirmed",
+        label: "Confirm",
+        icon: <CheckCircleIcon />,
+        color: "info"
+    },
+    confirmed: {
+        next: "shipped",
+        label: "Ship",
+        icon: <ShippingIcon />,
+        color: "primary"
+    },
+    shipped: {
+        next: "delivered",
+        label: "Deliver",
+        icon: <CheckIcon />,
+        color: "success"
+    },
+    delivered: null // No next action for delivered orders
+};
+
 const OrdersPage = () => {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-    const isTablet = useMediaQuery(theme.breakpoints.between('sm', 'md'));
 
     const [orders, setOrders] = useState([]);
     const [tab, setTab] = useState("pending");
@@ -68,6 +99,13 @@ const OrdersPage = () => {
     const [loading, setLoading] = useState(true);
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [detailsOpen, setDetailsOpen] = useState(false);
+    const [editMode, setEditMode] = useState(false);
+    const [editFormData, setEditFormData] = useState({
+        customer: { name: "", phone: "" },
+        items: []
+    });
+    const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
+    const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
     const fetchOrders = async () => {
         setLoading(true);
@@ -76,6 +114,7 @@ const OrdersPage = () => {
             setOrders(res.data);
         } catch (error) {
             console.error("Error fetching orders:", error);
+            showSnackbar("Error fetching orders", "error");
         } finally {
             setLoading(false);
         }
@@ -105,9 +144,41 @@ const OrdersPage = () => {
         try {
             await API.put(`/orders/${id}/status`, { status });
             fetchOrders();
+            showSnackbar(`Order status updated to ${status}`, "success");
         } catch (error) {
             console.error("Error updating status:", error);
+            showSnackbar("Error updating order status", "error");
         }
+    };
+
+    const updateOrder = async (id, updatedData) => {
+        try {
+            await API.put(`/orders/${id}`, updatedData);
+            fetchOrders();
+            setEditMode(false);
+            setDetailsOpen(false);
+            showSnackbar("Order updated successfully", "success");
+        } catch (error) {
+            console.error("Error updating order:", error);
+            showSnackbar(error.response?.data?.message || "Error updating order", "error");
+        }
+    };
+
+    const deleteOrder = async (id) => {
+        try {
+            await API.delete(`/orders/${id}`);
+            fetchOrders();
+            setDeleteConfirmOpen(false);
+            setDetailsOpen(false);
+            showSnackbar("Order deleted successfully", "success");
+        } catch (error) {
+            console.error("Error deleting order:", error);
+            showSnackbar("Error deleting order", "error");
+        }
+    };
+
+    const showSnackbar = (message, severity) => {
+        setSnackbar({ open: true, message, severity });
     };
 
     const nextStatus = (status) => {
@@ -129,14 +200,67 @@ const OrdersPage = () => {
 
     const handleOrderClick = (order) => {
         setSelectedOrder(order);
+        setEditFormData({
+            customer: { 
+                name: order.customer?.name || "", 
+                phone: order.customer?.phone || "" 
+            },
+            items: order.items?.map(item => ({
+                _id: item._id,
+                product: item.product?._id || item.product,
+                productName: item.product?.name || "",
+                size: item.size,
+                quantity: item.quantity,
+                price: item.price
+            })) || []
+        });
+        setEditMode(false);
         setDetailsOpen(true);
+    };
+
+    const handleEditChange = (field, value, itemIndex = null) => {
+        if (itemIndex !== null) {
+            const newItems = [...editFormData.items];
+            newItems[itemIndex] = { ...newItems[itemIndex], [field]: value };
+            setEditFormData({ ...editFormData, items: newItems });
+        } else if (field.startsWith('customer.')) {
+            const customerField = field.split('.')[1];
+            setEditFormData({
+                ...editFormData,
+                customer: { ...editFormData.customer, [customerField]: value }
+            });
+        } else {
+            setEditFormData({ ...editFormData, [field]: value });
+        }
+    };
+
+    const handleSaveEdit = () => {
+        const updatedOrder = {
+            customer: editFormData.customer,
+            items: editFormData.items.map(item => ({
+                product: item.product,
+                size: item.size,
+                quantity: item.quantity,
+                price: item.price
+            }))
+        };
+        updateOrder(selectedOrder._id, updatedOrder);
+    };
+
+    // Handle quick action button click
+    const handleQuickAction = (e, order) => {
+        e.stopPropagation();
+        const action = statusActions[order.status];
+        if (action) {
+            updateStatus(order._id, action.next);
+        }
     };
 
     return (
         <Box sx={{
             px: { xs: 1, sm: 2, md: 3 },
             py: { xs: 2, sm: 3 },
-            maxWidth: { xs: '100%', lg: 1400 },
+            maxWidth: { xs: '100%', lg: 1200 },
             mx: 'auto'
         }}>
             {/* Header */}
@@ -144,24 +268,24 @@ const OrdersPage = () => {
                 <Typography variant="h5" fontWeight="bold" gutterBottom sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem' } }}>
                     Orders Management
                 </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                <Typography variant="body2" color="text.secondary">
                     Manage and track all your orders
                 </Typography>
             </Box>
 
             {/* Search Bar */}
-            <Paper sx={{ p: { xs: 1.5, sm: 2 }, mb: { xs: 2, sm: 3 } }}>
+            <Paper sx={{ p: { xs: 1.5, sm: 2 }, mb: { xs: 2, sm: 3 } }} elevation={1}>
                 <TextField
                     fullWidth
-                    placeholder={isMobile ? "Search orders..." : "🔍 Search by customer name, phone, product or order ID..."}
+                    placeholder="Search by customer name, phone, product or order ID..."
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     variant="outlined"
-                    size={isMobile ? "small" : "medium"}
+                    size="small"
                     InputProps={{
                         startAdornment: (
                             <InputAdornment position="start">
-                                <SearchIcon fontSize={isMobile ? "small" : "medium"} />
+                                <SearchIcon />
                             </InputAdornment>
                         ),
                         endAdornment: search && (
@@ -176,7 +300,7 @@ const OrdersPage = () => {
             </Paper>
 
             {/* Tabs with Counts */}
-            <Paper sx={{ mb: { xs: 2, sm: 3 }, overflow: 'hidden' }}>
+            <Paper sx={{ mb: 3 }} elevation={1}>
                 <Tabs
                     value={tab}
                     onChange={(e, val) => setTab(val)}
@@ -185,293 +309,173 @@ const OrdersPage = () => {
                     allowScrollButtonsMobile
                     sx={{
                         '& .MuiTab-root': {
-                            minHeight: { xs: 48, sm: 64 },
-                            fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                            px: { xs: 1, sm: 2 }
+                            minHeight: 56,
+                            fontSize: '0.875rem',
+                            textTransform: 'none'
                         }
                     }}
                 >
-                    <Tab
-                        label={
-                            <Badge badgeContent={getStatusCount('pending')} color="warning">
-                                <Box sx={{ px: { xs: 0.5, sm: 2 } }}>
-                                    {isMobile ? 'Pending' : 'Pending'}
-                                </Box>
-                            </Badge>
-                        }
-                        value="pending"
-                    />
-                    <Tab
-                        label={
-                            <Badge badgeContent={getStatusCount('confirmed')} color="info">
-                                <Box sx={{ px: { xs: 0.5, sm: 2 } }}>
-                                    {isMobile ? 'Confirmed' : 'Confirmed'}
-                                </Box>
-                            </Badge>
-                        }
-                        value="confirmed"
-                    />
-                    <Tab
-                        label={
-                            <Badge badgeContent={getStatusCount('shipped')} color="primary">
-                                <Box sx={{ px: { xs: 0.5, sm: 2 } }}>
-                                    {isMobile ? 'Shipped' : 'Shipped'}
-                                </Box>
-                            </Badge>
-                        }
-                        value="shipped"
-                    />
-                    <Tab
-                        label={
-                            <Badge badgeContent={getStatusCount('delivered')} color="success">
-                                <Box sx={{ px: { xs: 0.5, sm: 2 } }}>
-                                    {isMobile ? 'Delivered' : 'Delivered'}
-                                </Box>
-                            </Badge>
-                        }
-                        value="delivered"
-                    />
+                    {['pending', 'confirmed', 'shipped', 'delivered'].map((status) => (
+                        <Tab
+                            key={status}
+                            label={
+                                <Badge badgeContent={getStatusCount(status)} color={statusColors[status]}>
+                                    <Box sx={{ px: 2, textTransform: 'capitalize' }}>
+                                        {status}
+                                    </Box>
+                                </Badge>
+                            }
+                            value={status}
+                        />
+                    ))}
                 </Tabs>
             </Paper>
 
             {/* Results Summary */}
             {search && (
                 <Box mb={2}>
-                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                    <Typography variant="body2" color="text.secondary">
                         Found {filteredOrders.length} {tab} order{filteredOrders.length !== 1 ? 's' : ''}
                         {search && ` matching "${search}"`}
                     </Typography>
                 </Box>
             )}
 
-            {/* Orders Grid */}
-            <Grid container spacing={{ xs: 1.5, sm: 2 }}>
-                {filteredOrders.map((order) => (
-                    <Grid item xs={12} key={order._id}>
-                        <Card
-                            sx={{
-                                cursor: 'pointer',
-                                transition: 'all 0.2s',
-                                '&:hover': {
-                                    boxShadow: 4,
-                                    transform: { xs: 'none', sm: 'translateY(-2px)' }
-                                }
-                            }}
-                            onClick={() => handleOrderClick(order)}
-                        >
-                            <CardContent sx={{ p: { xs: 1.5, sm: 2 } }}>
-                                {/* Mobile Layout */}
-                                {isMobile ? (
-                                    <Box>
-                                        {/* Header Row */}
-                                        <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={1.5}>
-                                            <Box display="flex" alignItems="center">
-                                                <Avatar
-                                                    sx={{
-                                                        width: 40,
-                                                        height: 40,
-                                                        bgcolor: alpha(theme.palette.primary.main, 0.1),
-                                                        color: theme.palette.primary.main,
-                                                        mr: 1.5
-                                                    }}
-                                                >
-                                                    <PersonIcon fontSize="small" />
-                                                </Avatar>
-                                                <Box>
-                                                    <Typography variant="subtitle2" fontWeight="medium">
-                                                        {order.customer?.name || 'Unknown Customer'}
-                                                    </Typography>
-                                                    <Box display="flex" alignItems="center">
-                                                        <PhoneIcon sx={{ fontSize: 12, mr: 0.5, color: 'text.secondary' }} />
-                                                        <Typography variant="caption" color="text.secondary">
-                                                            {order.customer?.phone || 'No phone'}
-                                                        </Typography>
-                                                    </Box>
-                                                </Box>
-                                            </Box>
-                                            <Chip
-                                                icon={statusIcons[order.status]}
-                                                label={order.status}
-                                                color={statusColors[order.status]}
-                                                size="small"
-                                                sx={{ height: 24, fontSize: '0.7rem' }}
-                                            />
-                                        </Box>
-
-                                        {/* Items & Total Row */}
-                                        <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-                                            <Box>
-                                                <Typography variant="caption" color="text.secondary">
-                                                    {order.items?.length || 0} item{order.items?.length !== 1 ? 's' : ''}
-                                                </Typography>
-                                                <Typography variant="body2" noWrap sx={{ maxWidth: 180 }}>
-                                                    {order.items?.[0]?.product?.name}
-                                                    {order.items?.length > 1 && ` +${order.items.length - 1} more`}
-                                                </Typography>
-                                            </Box>
-                                            <Box textAlign="right">
-                                                <Typography variant="caption" color="text.secondary">
-                                                    Total
+            {/* Orders List */}
+            <Paper elevation={1} sx={{ overflow: 'hidden' }}>
+                {filteredOrders.length > 0 ? (
+                    <List sx={{ p: 0 }}>
+                        {filteredOrders.map((order, index) => (
+                            <React.Fragment key={order._id}>
+                                <ListItem
+                                    button
+                                    onClick={() => handleOrderClick(order)}
+                                    sx={{
+                                        py: { xs: 1.5, sm: 2 },
+                                        px: { xs: 2, sm: 3 },
+                                        transition: 'all 0.2s',
+                                        '&:hover': {
+                                            backgroundColor: alpha(theme.palette.primary.main, 0.04)
+                                        }
+                                    }}
+                                >
+                                    <ListItemAvatar>
+                                        <Avatar
+                                            sx={{
+                                                bgcolor: alpha(theme.palette.primary.main, 0.1),
+                                                color: theme.palette.primary.main,
+                                                width: 48,
+                                                height: 48
+                                            }}
+                                        >
+                                            <PersonIcon />
+                                        </Avatar>
+                                    </ListItemAvatar>
+                                    
+                                    <ListItemText
+                                        primary={
+                                            <Box display="flex" alignItems="center" justifyContent="space-between">
+                                                <Typography variant="subtitle1" fontWeight="medium">
+                                                    {order.customer?.name || 'Unknown Customer'}
                                                 </Typography>
                                                 <Typography variant="body1" color="primary" fontWeight="bold">
                                                     ₹{order.totalPrice?.toLocaleString() || 0}
                                                 </Typography>
                                             </Box>
-                                        </Box>
-
-                                        {/* Order ID */}
-                                        <Typography variant="caption" color="text.secondary">
-                                            #{order._id?.slice(-8)}
-                                        </Typography>
-
-                                        {/* Quick Actions */}
-                                        {nextStatus(order.status) && (
-                                            <>
-                                                <Divider sx={{ my: 1.5 }} />
-                                                <Button
-                                                    fullWidth
-                                                    size="small"
-                                                    variant="contained"
-                                                    color={statusColors[nextStatus(order.status)]}
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        updateStatus(order._id, nextStatus(order.status));
-                                                    }}
-                                                    startIcon={statusIcons[nextStatus(order.status)]}
-                                                    sx={{ fontSize: '0.75rem' }}
-                                                >
-                                                    Mark as {nextStatus(order.status)}
-                                                </Button>
-                                            </>
-                                        )}
-                                    </Box>
-                                ) : (
-                                    /* Desktop/Tablet Layout */
-                                    <Grid container alignItems="center" spacing={2}>
-                                        {/* Order ID & Customer */}
-                                        <Grid item xs={12} sm={isTablet ? 5 : 4} md={4}>
-                                            <Box display="flex" alignItems="center">
-                                                <Avatar
-                                                    sx={{
-                                                        bgcolor: alpha(theme.palette.primary.main, 0.1),
-                                                        color: theme.palette.primary.main,
-                                                        mr: 2,
-                                                        width: { sm: 40, md: 48 },
-                                                        height: { sm: 40, md: 48 }
-                                                    }}
-                                                >
-                                                    <PersonIcon />
-                                                </Avatar>
-                                                <Box>
-                                                    <Typography variant="h6" sx={{ fontSize: { sm: '0.9rem', md: '1rem' } }}>
-                                                        {order.customer?.name || 'Unknown Customer'}
+                                        }
+                                        secondary={
+                                            <Box mt={0.5}>
+                                                <Box display="flex" alignItems="center" gap={1} mb={0.5}>
+                                                    <PhoneIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+                                                    <Typography variant="body2" color="text.secondary">
+                                                        {order.customer?.phone || 'No phone'}
                                                     </Typography>
-                                                    <Box display="flex" alignItems="center">
-                                                        <PhoneIcon sx={{ fontSize: 14, mr: 0.5, color: 'text.secondary' }} />
-                                                        <Typography variant="body2" color="text.secondary">
-                                                            {order.customer?.phone || 'No phone'}
+                                                </Box>
+                                                <Typography variant="body2" color="text.primary" sx={{ mb: 0.5 }}>
+                                                    {order.items?.[0]?.product?.name || 'No items'}
+                                                    {order.items?.length > 1 && (
+                                                        <Typography component="span" color="text.secondary">
+                                                            {' '} +{order.items.length - 1} more item{order.items.length - 1 > 1 ? 's' : ''}
                                                         </Typography>
-                                                    </Box>
+                                                    )}
+                                                </Typography>
+                                                <Box display="flex" alignItems="center" gap={1}>
+                                                    <Chip
+                                                        icon={statusIcons[order.status]}
+                                                        label={order.status}
+                                                        color={statusColors[order.status]}
+                                                        size="small"
+                                                        sx={{ 
+                                                            height: 24, 
+                                                            fontSize: '0.75rem',
+                                                            textTransform: 'capitalize'
+                                                        }}
+                                                    />
                                                     <Typography variant="caption" color="text.secondary">
-                                                        Order #{order._id?.slice(-6)}
+                                                        #{order._id?.slice(-8)}
                                                     </Typography>
                                                 </Box>
                                             </Box>
-                                        </Grid>
-
-                                        {/* Items Summary */}
-                                        <Grid item xs={12} sm={isTablet ? 4 : 4} md={4}>
-                                            <Typography variant="body2" color="text.secondary" gutterBottom>
-                                                Items ({order.items?.length || 0})
-                                            </Typography>
-                                            <Stack spacing={0.5}>
-                                                {order.items?.slice(0, 2).map((item, i) => (
-                                                    <Typography key={i} variant="body2" noWrap sx={{ fontSize: { sm: '0.8rem', md: '0.875rem' } }}>
-                                                        • {item.product?.name} - {item.size} × {item.quantity}
-                                                    </Typography>
-                                                ))}
-                                                {order.items?.length > 2 && (
-                                                    <Typography variant="caption" color="text.secondary">
-                                                        +{order.items.length - 2} more items
-                                                    </Typography>
-                                                )}
-                                            </Stack>
-                                        </Grid>
-
-                                        {/* Total & Status */}
-                                        <Grid item xs={8} sm={isTablet ? 2 : 3} md={3}>
-                                            <Typography variant="body2" color="text.secondary" gutterBottom>
-                                                Total Amount
-                                            </Typography>
-                                            <Typography variant="h6" color="primary" fontWeight="bold" sx={{ fontSize: { sm: '1rem', md: '1.25rem' } }}>
-                                                ₹{order.totalPrice?.toLocaleString() || 0}
-                                            </Typography>
-                                        </Grid>
-
-                                        <Grid item xs={4} sm={1}>
-                                            <Box display="flex" flexDirection="column" alignItems="flex-end">
-                                                <Chip
-                                                    icon={statusIcons[order.status]}
-                                                    label={order.status}
-                                                    color={statusColors[order.status]}
+                                        }
+                                        sx={{ pr: isMobile ? 8 : 12 }}
+                                    />
+                                    
+                                    <ListItemSecondaryAction>
+                                        <Box display="flex" alignItems="center" gap={1}>
+                                            {/* Quick Action Button */}
+                                            {statusActions[order.status] && (
+                                                <Tooltip title={`Mark as ${statusActions[order.status].next}`}>
+                                                    <Button
+                                                        variant="contained"
+                                                        size="small"
+                                                        color={statusActions[order.status].color}
+                                                        onClick={(e) => handleQuickAction(e, order)}
+                                                        startIcon={statusActions[order.status].icon}
+                                                        sx={{
+                                                            minWidth: isMobile ? 'auto' : 100,
+                                                            px: isMobile ? 1 : 2,
+                                                            '& .MuiButton-startIcon': {
+                                                                mr: isMobile ? 0 : 1
+                                                            }
+                                                        }}
+                                                    >
+                                                        {!isMobile && statusActions[order.status].label}
+                                                    </Button>
+                                                </Tooltip>
+                                            )}
+                                            
+                                            {/* Details Button */}
+                                            <Tooltip title="View Details">
+                                                <IconButton 
+                                                    edge="end" 
+                                                    onClick={() => handleOrderClick(order)}
                                                     size="small"
-                                                    sx={{ mb: 1 }}
-                                                />
-                                                <IconButton
-                                                    size="small"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleOrderClick(order);
-                                                    }}
                                                 >
-                                                    <MoreVertIcon />
+                                                    <ChevronRightIcon />
                                                 </IconButton>
-                                            </Box>
-                                        </Grid>
-                                    </Grid>
-                                )}
-
-                                {/* Quick Actions for Desktop */}
-                                {!isMobile && nextStatus(order.status) && (
-                                    <>
-                                        <Divider sx={{ my: 2 }} />
-                                        <Box display="flex" justifyContent="flex-end">
-                                            <Button
-                                                size="small"
-                                                variant="contained"
-                                                color={statusColors[nextStatus(order.status)]}
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    updateStatus(order._id, nextStatus(order.status));
-                                                }}
-                                                startIcon={statusIcons[nextStatus(order.status)]}
-                                            >
-                                                Mark as {nextStatus(order.status)}
-                                            </Button>
+                                            </Tooltip>
                                         </Box>
-                                    </>
-                                )}
-                            </CardContent>
-                        </Card>
-                    </Grid>
-                ))}
-            </Grid>
-
-            {/* Empty State */}
-            {filteredOrders.length === 0 && !loading && (
-                <Paper sx={{ p: { xs: 3, sm: 4 }, textAlign: 'center' }}>
-                    <InventoryIcon sx={{ fontSize: { xs: 36, sm: 48 }, color: 'text.secondary', mb: 2 }} />
-                    <Typography variant="h6" color="text.secondary" gutterBottom sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}>
-                        No orders found
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                        {search
-                            ? `No ${tab} orders matching "${search}"`
-                            : `No ${tab} orders at the moment`
-                        }
-                    </Typography>
-                </Paper>
-            )}
+                                    </ListItemSecondaryAction>
+                                </ListItem>
+                                {index < filteredOrders.length - 1 && <Divider variant="inset" component="li" />}
+                            </React.Fragment>
+                        ))}
+                    </List>
+                ) : (
+                    <Box sx={{ p: 4, textAlign: 'center' }}>
+                        <InventoryIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
+                        <Typography variant="h6" color="text.secondary" gutterBottom>
+                            No orders found
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                            {search
+                                ? `No ${tab} orders matching "${search}"`
+                                : `No ${tab} orders at the moment`
+                            }
+                        </Typography>
+                    </Box>
+                )}
+            </Paper>
 
             {/* Order Details Dialog */}
             <Dialog
@@ -488,11 +492,32 @@ const OrdersPage = () => {
                                 <Typography variant="h6" sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}>
                                     Order Details
                                 </Typography>
-                                <Chip
-                                    label={selectedOrder.status}
-                                    color={statusColors[selectedOrder.status]}
-                                    size="small"
-                                />
+                                <Box>
+                                    {!editMode && (
+                                        <>
+                                            <IconButton 
+                                                size="small" 
+                                                onClick={() => setEditMode(true)}
+                                                sx={{ mr: 1 }}
+                                            >
+                                                <EditIcon />
+                                            </IconButton>
+                                            <IconButton 
+                                                size="small" 
+                                                color="error"
+                                                onClick={() => setDeleteConfirmOpen(true)}
+                                            >
+                                                <DeleteIcon />
+                                            </IconButton>
+                                        </>
+                                    )}
+                                    <Chip
+                                        label={selectedOrder.status}
+                                        color={statusColors[selectedOrder.status]}
+                                        size="small"
+                                        sx={{ ml: 1 }}
+                                    />
+                                </Box>
                             </Box>
                             <Typography variant="caption" color="text.secondary">
                                 Order ID: {selectedOrder._id}
@@ -504,12 +529,34 @@ const OrdersPage = () => {
                                 Customer Information
                             </Typography>
                             <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
-                                <Typography sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}>
-                                    <strong>Name:</strong> {selectedOrder.customer?.name}
-                                </Typography>
-                                <Typography sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}>
-                                    <strong>Phone:</strong> {selectedOrder.customer?.phone}
-                                </Typography>
+                                {editMode ? (
+                                    <>
+                                        <TextField
+                                            fullWidth
+                                            label="Customer Name"
+                                            value={editFormData.customer.name}
+                                            onChange={(e) => handleEditChange('customer.name', e.target.value)}
+                                            size="small"
+                                            sx={{ mb: 1 }}
+                                        />
+                                        <TextField
+                                            fullWidth
+                                            label="Phone Number"
+                                            value={editFormData.customer.phone}
+                                            onChange={(e) => handleEditChange('customer.phone', e.target.value)}
+                                            size="small"
+                                        />
+                                    </>
+                                ) : (
+                                    <>
+                                        <Typography>
+                                            <strong>Name:</strong> {selectedOrder.customer?.name}
+                                        </Typography>
+                                        <Typography>
+                                            <strong>Phone:</strong> {selectedOrder.customer?.phone}
+                                        </Typography>
+                                    </>
+                                )}
                             </Paper>
 
                             {/* Items */}
@@ -517,31 +564,82 @@ const OrdersPage = () => {
                                 Order Items
                             </Typography>
                             <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
-                                {selectedOrder.items?.map((item, i) => (
-                                    <Box key={i} sx={{ mb: 1 }}>
-                                        <Typography sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}>
-                                            <strong>{item.product?.name}</strong> - {item.size}
-                                        </Typography>
-                                        <Typography variant="body2" color="text.secondary">
-                                            Quantity: {item.quantity} × ₹{item.price}
-                                        </Typography>
-                                        {i < selectedOrder.items.length - 1 && <Divider sx={{ my: 1 }} />}
-                                    </Box>
-                                ))}
+                                {editMode ? (
+                                    <>
+                                        {editFormData.items.map((item, idx) => (
+                                            <Box key={idx} sx={{ mb: 2, pb: 1, borderBottom: idx < editFormData.items.length - 1 ? 1 : 0, borderColor: 'divider' }}>
+                                                <TextField
+                                                    fullWidth
+                                                    label="Product Name"
+                                                    value={item.productName}
+                                                    disabled
+                                                    size="small"
+                                                    sx={{ mb: 1 }}
+                                                />
+                                                <Grid container spacing={1}>
+                                                    <Grid item xs={4}>
+                                                        <TextField
+                                                            fullWidth
+                                                            label="Size"
+                                                            value={item.size}
+                                                            onChange={(e) => handleEditChange('size', e.target.value, idx)}
+                                                            size="small"
+                                                        />
+                                                    </Grid>
+                                                    <Grid item xs={4}>
+                                                        <TextField
+                                                            fullWidth
+                                                            label="Quantity"
+                                                            type="number"
+                                                            value={item.quantity}
+                                                            onChange={(e) => handleEditChange('quantity', parseInt(e.target.value), idx)}
+                                                            size="small"
+                                                        />
+                                                    </Grid>
+                                                    <Grid item xs={4}>
+                                                        <TextField
+                                                            fullWidth
+                                                            label="Price"
+                                                            type="number"
+                                                            value={item.price}
+                                                            onChange={(e) => handleEditChange('price', parseFloat(e.target.value), idx)}
+                                                            size="small"
+                                                        />
+                                                    </Grid>
+                                                </Grid>
+                                            </Box>
+                                        ))}
+                                    </>
+                                ) : (
+                                    selectedOrder.items?.map((item, i) => (
+                                        <Box key={i} sx={{ mb: 1 }}>
+                                            <Typography>
+                                                <strong>{item.product?.name}</strong> - {item.size}
+                                            </Typography>
+                                            <Typography variant="body2" color="text.secondary">
+                                                Quantity: {item.quantity} × ₹{item.price}
+                                            </Typography>
+                                            {i < selectedOrder.items.length - 1 && <Divider sx={{ my: 1 }} />}
+                                        </Box>
+                                    ))
+                                )}
                             </Paper>
 
                             {/* Total */}
                             <Box display="flex" justifyContent="space-between" alignItems="center">
-                                <Typography variant="h6" sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}>
+                                <Typography variant="h6">
                                     Total Amount
                                 </Typography>
-                                <Typography variant="h5" color="primary" fontWeight="bold" sx={{ fontSize: { xs: '1.1rem', sm: '1.5rem' } }}>
-                                    ₹{selectedOrder.totalPrice?.toLocaleString()}
+                                <Typography variant="h5" color="primary" fontWeight="bold">
+                                    ₹{editMode 
+                                        ? editFormData.items.reduce((sum, item) => sum + (item.price * item.quantity), 0).toLocaleString()
+                                        : selectedOrder.totalPrice?.toLocaleString()
+                                    }
                                 </Typography>
                             </Box>
 
                             {/* Status Update */}
-                            {nextStatus(selectedOrder.status) && (
+                            {!editMode && nextStatus(selectedOrder.status) && (
                                 <Box mt={2}>
                                     <Typography variant="subtitle2" gutterBottom>
                                         Update Status
@@ -565,11 +663,72 @@ const OrdersPage = () => {
                             )}
                         </DialogContent>
                         <DialogActions sx={{ px: { xs: 2, sm: 3 }, py: { xs: 1.5, sm: 2 } }}>
-                            <Button onClick={() => setDetailsOpen(false)}>Close</Button>
+                            {editMode ? (
+                                <>
+                                    <Button onClick={() => setEditMode(false)}>Cancel</Button>
+                                    <Button 
+                                        onClick={handleSaveEdit} 
+                                        variant="contained" 
+                                        color="primary"
+                                        startIcon={<SaveIcon />}
+                                    >
+                                        Save Changes
+                                    </Button>
+                                </>
+                            ) : (
+                                <>
+                                    {statusActions[selectedOrder.status] && (
+                                        <Button
+                                            variant="contained"
+                                            color={statusActions[selectedOrder.status].color}
+                                            onClick={() => {
+                                                updateStatus(selectedOrder._id, statusActions[selectedOrder.status].next);
+                                                setDetailsOpen(false);
+                                            }}
+                                            startIcon={statusActions[selectedOrder.status].icon}
+                                        >
+                                            Mark as {statusActions[selectedOrder.status].next}
+                                        </Button>
+                                    )}
+                                    <Button onClick={() => setDetailsOpen(false)}>Close</Button>
+                                </>
+                            )}
                         </DialogActions>
                     </>
                 )}
             </Dialog>
+
+            {/* Delete Confirmation Dialog */}
+            <Dialog open={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)}>
+                <DialogTitle>Confirm Delete</DialogTitle>
+                <DialogContent>
+                    <Typography>
+                        Are you sure you want to delete this order? This action cannot be undone.
+                    </Typography>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setDeleteConfirmOpen(false)}>Cancel</Button>
+                    <Button 
+                        onClick={() => deleteOrder(selectedOrder?._id)} 
+                        color="error" 
+                        variant="contained"
+                    >
+                        Delete
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Snackbar */}
+            <Snackbar
+                open={snackbar.open}
+                autoHideDuration={6000}
+                onClose={() => setSnackbar({ ...snackbar, open: false })}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+            >
+                <Alert severity={snackbar.severity} onClose={() => setSnackbar({ ...snackbar, open: false })}>
+                    {snackbar.message}
+                </Alert>
+            </Snackbar>
         </Box>
     );
 };

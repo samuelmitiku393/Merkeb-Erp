@@ -1,8 +1,11 @@
 import React from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
+import { AuthProvider, useAuth } from "./context/AuthContext";
+import ProtectedRoute from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
+import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import OrdersPage from "./pages/OrdersPage";
 import QuickOrder from "./pages/QuickOrder";
@@ -68,20 +71,69 @@ const theme = createTheme({
   },
 });
 
+// Separate component for app routes
+const AppRoutes = () => {
+  const { isAuthenticated } = useAuth();
+
+  return (
+    <Routes>
+      <Route path="/login" element={
+        isAuthenticated ? <Navigate to="/" replace /> : <Login />
+      } />
+      
+      <Route path="/" element={
+        <ProtectedRoute>
+          <Layout>
+            <Dashboard />
+          </Layout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/orders" element={
+        <ProtectedRoute>
+          <Layout>
+            <OrdersPage />
+          </Layout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/quick-order" element={
+        <ProtectedRoute>
+          <Layout>
+            <QuickOrder />
+          </Layout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/inventory" element={
+        <ProtectedRoute>
+          <Layout>
+            <Inventory />
+          </Layout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/profile" element={
+        <ProtectedRoute>
+          <Layout>
+            <Profile />
+          </Layout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+};
+
 function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Router>
-        <Layout>
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/orders" element={<OrdersPage />} />
-            <Route path="/quick-order" element={<QuickOrder />} />
-            <Route path="/inventory" element={<Inventory />} />
-            <Route path="/profile" element={<Profile />} />
-          </Routes>
-        </Layout>
+        <AuthProvider>
+          <AppRoutes />
+        </AuthProvider>
       </Router>
     </ThemeProvider>
   );

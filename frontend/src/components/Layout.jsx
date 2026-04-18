@@ -10,7 +10,14 @@ import {
     Avatar,
     Badge,
     IconButton,
-    useScrollTrigger
+    Menu,
+    MenuItem,
+    ListItemIcon,
+    ListItemText,
+    Divider,
+    useScrollTrigger,
+    useTheme,
+    useMediaQuery
 } from "@mui/material";
 import {
     Dashboard as DashboardIcon,
@@ -18,14 +25,25 @@ import {
     AddCircle as QuickOrderIcon,
     Inventory as InventoryIcon,
     Person as ProfileIcon,
-    Notifications as NotificationsIcon
+    Notifications as NotificationsIcon,
+    Logout as LogoutIcon,
+    Settings as SettingsIcon,
+    AccountCircle as AccountCircleIcon
 } from "@mui/icons-material";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 const Layout = ({ children }) => {
     const navigate = useNavigate();
     const location = useLocation();
+    const { user, logout } = useAuth();
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+    
     const [value, setValue] = useState(location.pathname);
+    const [anchorEl, setAnchorEl] = useState(null);
+    const [notificationAnchorEl, setNotificationAnchorEl] = useState(null);
+    
     const scrollTrigger = useScrollTrigger({
         disableHysteresis: true,
         threshold: 0,
@@ -34,6 +52,33 @@ const Layout = ({ children }) => {
     const handleChange = (event, newValue) => {
         setValue(newValue);
         navigate(newValue);
+    };
+
+    const handleProfileMenuOpen = (event) => {
+        setAnchorEl(event.currentTarget);
+    };
+
+    const handleProfileMenuClose = () => {
+        setAnchorEl(null);
+    };
+
+    const handleNotificationMenuOpen = (event) => {
+        setNotificationAnchorEl(event.currentTarget);
+    };
+
+    const handleNotificationMenuClose = () => {
+        setNotificationAnchorEl(null);
+    };
+
+    const handleLogout = () => {
+        handleProfileMenuClose();
+        logout();
+        navigate('/login');
+    };
+
+    const handleNavigateToProfile = () => {
+        handleProfileMenuClose();
+        navigate('/profile');
     };
 
     const pageTitle = useMemo(() => {
@@ -54,6 +99,12 @@ const Layout = ({ children }) => {
         { label: "Inventory", value: "/inventory", icon: <InventoryIcon /> },
         { label: "Profile", value: "/profile", icon: <ProfileIcon /> }
     ];
+
+    // Get user initials for avatar
+    const getUserInitials = () => {
+        if (!user?.username) return 'U';
+        return user.username.charAt(0).toUpperCase();
+    };
 
     return (
         <Box sx={{
@@ -96,6 +147,7 @@ const Layout = ({ children }) => {
                         color="inherit"
                         sx={{ mr: 1 }}
                         aria-label="notifications"
+                        onClick={handleNotificationMenuOpen}
                     >
                         <Badge
                             badgeContent={3}
@@ -114,12 +166,13 @@ const Layout = ({ children }) => {
                     <IconButton
                         sx={{ p: 0 }}
                         aria-label="user menu"
+                        onClick={handleProfileMenuOpen}
                     >
                         <Avatar
                             sx={{
                                 width: 32,
                                 height: 32,
-                                bgcolor: 'primary.main',
+                                bgcolor: user?.role === 'admin' ? 'secondary.main' : 'primary.main',
                                 fontSize: '0.875rem',
                                 transition: 'transform 0.2s ease',
                                 '&:hover': {
@@ -127,11 +180,149 @@ const Layout = ({ children }) => {
                                 }
                             }}
                         >
-                            A
+                            {getUserInitials()}
                         </Avatar>
                     </IconButton>
                 </Toolbar>
             </AppBar>
+
+            {/* Profile Menu */}
+            <Menu
+                anchorEl={anchorEl}
+                open={Boolean(anchorEl)}
+                onClose={handleProfileMenuClose}
+                transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+                anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+                PaperProps={{
+                    sx: {
+                        mt: 1.5,
+                        minWidth: 200,
+                        overflow: 'visible',
+                        '&:before': {
+                            content: '""',
+                            display: 'block',
+                            position: 'absolute',
+                            top: 0,
+                            right: 14,
+                            width: 10,
+                            height: 10,
+                            bgcolor: 'background.paper',
+                            transform: 'translateY(-50%) rotate(45deg)',
+                            zIndex: 0,
+                        },
+                    },
+                }}
+            >
+                <Box sx={{ px: 2, py: 1.5 }}>
+                    <Typography variant="subtitle2" fontWeight="bold">
+                        {user?.username || 'User'}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                        {user?.role === 'admin' ? 'Administrator' : 'User'}
+                    </Typography>
+                </Box>
+                <Divider />
+                <MenuItem onClick={handleNavigateToProfile}>
+                    <ListItemIcon>
+                        <AccountCircleIcon fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText>Profile</ListItemText>
+                </MenuItem>
+                <MenuItem onClick={handleProfileMenuClose}>
+                    <ListItemIcon>
+                        <SettingsIcon fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText>Settings</ListItemText>
+                </MenuItem>
+                <Divider />
+                <MenuItem onClick={handleLogout} sx={{ color: 'error.main' }}>
+                    <ListItemIcon>
+                        <LogoutIcon fontSize="small" color="error" />
+                    </ListItemIcon>
+                    <ListItemText>Logout</ListItemText>
+                </MenuItem>
+            </Menu>
+
+            {/* Notifications Menu */}
+            <Menu
+                anchorEl={notificationAnchorEl}
+                open={Boolean(notificationAnchorEl)}
+                onClose={handleNotificationMenuClose}
+                transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+                anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+                PaperProps={{
+                    sx: {
+                        mt: 1.5,
+                        minWidth: 280,
+                        maxWidth: 320,
+                        overflow: 'visible',
+                        '&:before': {
+                            content: '""',
+                            display: 'block',
+                            position: 'absolute',
+                            top: 0,
+                            right: 14,
+                            width: 10,
+                            height: 10,
+                            bgcolor: 'background.paper',
+                            transform: 'translateY(-50%) rotate(45deg)',
+                            zIndex: 0,
+                        },
+                    },
+                }}
+            >
+                <Box sx={{ px: 2, py: 1.5 }}>
+                    <Typography variant="subtitle2" fontWeight="bold">
+                        Notifications
+                    </Typography>
+                </Box>
+                <Divider />
+                <MenuItem onClick={handleNotificationMenuClose}>
+                    <Box sx={{ py: 1 }}>
+                        <Typography variant="body2" fontWeight="medium">
+                            New order received
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                            Order #1234 - 5 minutes ago
+                        </Typography>
+                    </Box>
+                </MenuItem>
+                <MenuItem onClick={handleNotificationMenuClose}>
+                    <Box sx={{ py: 1 }}>
+                        <Typography variant="body2" fontWeight="medium">
+                            Low stock alert
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                            Product "Home Jersey" - 2 hours ago
+                        </Typography>
+                    </Box>
+                </MenuItem>
+                <MenuItem onClick={handleNotificationMenuClose}>
+                    <Box sx={{ py: 1 }}>
+                        <Typography variant="body2" fontWeight="medium">
+                            Payment confirmed
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                            Order #1230 - Yesterday
+                        </Typography>
+                    </Box>
+                </MenuItem>
+                <Divider />
+                <Box sx={{ p: 1 }}>
+                    <Typography 
+                        variant="caption" 
+                        color="primary" 
+                        sx={{ 
+                            cursor: 'pointer',
+                            display: 'block',
+                            textAlign: 'center'
+                        }}
+                        onClick={handleNotificationMenuClose}
+                    >
+                        View all notifications
+                    </Typography>
+                </Box>
+            </Menu>
 
             <Box
                 component="main"
@@ -164,7 +355,7 @@ const Layout = ({ children }) => {
                     onChange={handleChange}
                     showLabels
                     sx={{
-                        height: 65,
+                        height: isMobile ? 65 : 70,
                         '& .MuiBottomNavigationAction-root': {
                             minWidth: 'auto',
                             padding: '6px 0',
