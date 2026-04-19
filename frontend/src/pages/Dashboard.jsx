@@ -159,7 +159,7 @@ const Dashboard = () => {
         },
         {
             label: "Revenue",
-            value: `₹${formatCurrency(stats?.revenue)}`,
+            value: `$${formatCurrency(stats?.revenue)}`,
             icon: AttachMoney,
             color: theme.palette.warning.main,
             trend: { value: 15.3, isUp: true },
@@ -581,7 +581,7 @@ const Dashboard = () => {
                                             fontWeight="bold"
                                             sx={{ mb: 1 }}
                                         >
-                                            ₹{formatCurrency(profit?.totalRevenue)}
+                                            ${formatCurrency(profit?.totalRevenue)}
                                         </Typography>
                                         <Chip
                                             label="+15%"
@@ -605,7 +605,7 @@ const Dashboard = () => {
                                             fontWeight="bold"
                                             sx={{ mb: 1 }}
                                         >
-                                            ₹{formatCurrency(profit?.totalCost)}
+                                            ${formatCurrency(profit?.totalCost)}
                                         </Typography>
                                         <Chip
                                             label="+8%"
@@ -629,7 +629,7 @@ const Dashboard = () => {
                                             fontSize={{ xs: '1.25rem', sm: '1.5rem' }}
                                             sx={{ mb: 1 }}
                                         >
-                                            ₹{formatCurrency(profit?.profit)}
+                                            ${formatCurrency(profit?.profit)}
                                         </Typography>
                                         <Chip
                                             label={`${formatPercentage(profit?.profitMargin)}% margin`}
@@ -1075,7 +1075,7 @@ const Dashboard = () => {
                                                         fontSize={{ xs: '0.875rem', sm: '1rem', md: '1.1rem' }}
                                                         fontWeight="bold"
                                                     >
-                                                        ₹{formatCurrency(product.totalRevenue)}
+                                                        ${formatCurrency(product.totalRevenue)}
                                                     </Typography>
                                                 </Grid>
                                             </Grid>

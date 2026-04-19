@@ -1051,8 +1051,6 @@ const Inventory = () => {
                     </Button>
                 </DialogActions>
             </Dialog>
-
-
         </Box>
     );
 };

@@ -41,16 +41,6 @@ const Layout = ({ children }) => {
     };
 
     // Get current page title for document title or subtitle if needed
-    const pageSubtitle = useMemo(() => {
-        const titles = {
-            "/": "Dashboard",
-            "/orders": "Orders",
-            "/quick-order": "Quick Order",
-            "/inventory": "Inventory",
-            "/profile": "Profile"
-        };
-        return titles[location.pathname] || "Dashboard";
-    }, [location.pathname]);
 
     const navItems = [
         { label: "Dashboard", value: "/", icon: <DashboardIcon /> },
@@ -104,7 +94,7 @@ const Layout = ({ children }) => {
                                 mt: -0.5
                             }}
                         >
-                            {pageSubtitle}
+
                         </Typography>
                     </Box>
                 </Toolbar>
