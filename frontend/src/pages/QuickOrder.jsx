@@ -38,7 +38,8 @@ import {
   Close as CloseIcon,
   Receipt as ReceiptIcon,
   Person as PersonIcon,
-  ShoppingBag as ShoppingBagIcon
+  ShoppingBag as ShoppingBagIcon,
+  LocationOn as LocationIcon
 } from "@mui/icons-material";
 import API from "../api/axios";
 
@@ -52,7 +53,12 @@ const QuickOrder = () => {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [customerLoading, setCustomerLoading] = useState(false);
   const [createCustomerOpen, setCreateCustomerOpen] = useState(false);
-  const [newCustomer, setNewCustomer] = useState({ name: "", phone: "", instagram: "" });
+  const [newCustomer, setNewCustomer] = useState({ 
+    name: "", 
+    phone: "", 
+    address: "", 
+    instagram: "" 
+  });
 
   // Items State
   const [items, setItems] = useState([
@@ -115,11 +121,12 @@ const QuickOrder = () => {
       const res = await API.post("/customers", {
         name: newCustomer.name,
         phone: newCustomer.phone,
+        address: newCustomer.address,
         instagramHandle: newCustomer.instagram || newCustomer.name
       });
       selectCustomer(res.data);
       setCreateCustomerOpen(false);
-      setNewCustomer({ name: "", phone: "", instagram: "" });
+      setNewCustomer({ name: "", phone: "", address: "", instagram: "" });
     } catch (error) {
       console.error("Error creating customer:", error);
       alert("Failed to create customer");
@@ -311,16 +318,24 @@ const QuickOrder = () => {
                 bgcolor: alpha(theme.palette.success.main, 0.05),
                 borderRadius: 2,
                 display: 'flex',
-                alignItems: 'center',
+                alignItems: 'flex-start',
                 justifyContent: 'space-between'
               }}>
-                <Box>
+                <Box sx={{ flex: 1 }}>
                   <Typography variant="body1" fontWeight="medium">
                     {selectedCustomer.name}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
                     {selectedCustomer.phone}
                   </Typography>
+                  {selectedCustomer.address && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
+                      <LocationIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                      <Typography variant="body2" color="text.secondary">
+                        {selectedCustomer.address}
+                      </Typography>
+                    </Box>
+                  )}
                 </Box>
                 <Button
                   size="small"
@@ -334,7 +349,7 @@ const QuickOrder = () => {
               <>
                 <TextField
                   fullWidth
-                  placeholder="Search customer by name or phone..."
+                  placeholder="Search customer by name, phone, or address..."
                   value={customerQuery}
                   onChange={(e) => handleCustomerSearch(e.target.value)}
                   autoFocus
@@ -356,7 +371,7 @@ const QuickOrder = () => {
 
                 {/* Search Results */}
                 {customerResults.length > 0 && (
-                  <Paper variant="outlined" sx={{ mb: 2, maxHeight: 250, overflow: 'auto' }}>
+                  <Paper variant="outlined" sx={{ mb: 2, maxHeight: 300, overflow: 'auto' }}>
                     {customerResults.map((customer) => (
                       <Box
                         key={customer._id}
@@ -376,6 +391,14 @@ const QuickOrder = () => {
                         <Typography variant="body2" color="text.secondary">
                           {customer.phone}
                         </Typography>
+                        {customer.address && (
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
+                            <LocationIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+                            <Typography variant="caption" color="text.secondary">
+                              {customer.address}
+                            </Typography>
+                          </Box>
+                        )}
                       </Box>
                     ))}
                   </Paper>
@@ -618,7 +641,26 @@ const QuickOrder = () => {
               Order Summary
             </Typography>
 
-            <Divider sx={{ my: 2 }} />
+            {/* Customer Info in Summary */}
+            {selectedCustomer && (
+              <Box sx={{ 
+                p: 1.5, 
+                bgcolor: alpha(theme.palette.primary.main, 0.05), 
+                borderRadius: 1,
+                mb: 2 
+              }}>
+                <Typography variant="body2" fontWeight="medium">
+                  Customer: {selectedCustomer.name}
+                </Typography>
+                {selectedCustomer.address && (
+                  <Typography variant="caption" color="text.secondary">
+                    Delivery to: {selectedCustomer.address}
+                  </Typography>
+                )}
+              </Box>
+            )}
+
+            <Divider sx={{ mb: 2 }} />
 
             {/* Items List */}
             <Box sx={{ maxHeight: isMobile ? 'none' : 300, overflow: 'auto' }}>
@@ -705,7 +747,7 @@ const QuickOrder = () => {
         </Stack>
       </Container>
 
-      {/* Create Customer Dialog - Mobile Optimized */}
+      {/* Create Customer Dialog - Mobile Optimized with Address Field */}
       <Dialog
         open={createCustomerOpen}
         onClose={() => setCreateCustomerOpen(false)}
@@ -733,6 +775,23 @@ const QuickOrder = () => {
               value={newCustomer.phone}
               onChange={(e) => setNewCustomer({ ...newCustomer, phone: e.target.value })}
               size={isMobile ? "small" : "medium"}
+            />
+            <TextField
+              fullWidth
+              label="Address"
+              value={newCustomer.address}
+              onChange={(e) => setNewCustomer({ ...newCustomer, address: e.target.value })}
+              size={isMobile ? "small" : "medium"}
+              multiline
+              rows={2}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <LocationIcon color="action" />
+                  </InputAdornment>
+                )
+              }}
+              placeholder="Enter delivery address"
             />
             <TextField
               fullWidth
@@ -782,6 +841,18 @@ const QuickOrder = () => {
           <Typography gutterBottom>
             Order #{createdOrder?._id?.slice(-8)} has been created.
           </Typography>
+          {selectedCustomer && (
+            <Box sx={{ mt: 1, mb: 2 }}>
+              <Typography variant="body2" color="text.secondary">
+                Customer: {selectedCustomer.name}
+              </Typography>
+              {selectedCustomer.address && (
+                <Typography variant="body2" color="text.secondary">
+                  Delivery to: {selectedCustomer.address}
+                </Typography>
+              )}
+            </Box>
+          )}
           <Typography variant="h6" color="primary">
             Total: ${createdOrder?.totalPrice?.toLocaleString()}
           </Typography>

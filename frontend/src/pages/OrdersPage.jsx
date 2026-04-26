@@ -48,7 +48,9 @@ import {
     Delete as DeleteIcon,
     Save as SaveIcon,
     ChevronRight as ChevronRightIcon,
-    Check as CheckIcon
+    Check as CheckIcon,
+    LocationOn as LocationIcon,
+    Home as HomeIcon
 } from "@mui/icons-material";
 import API from "../api/axios";
 
@@ -101,7 +103,7 @@ const OrdersPage = () => {
     const [detailsOpen, setDetailsOpen] = useState(false);
     const [editMode, setEditMode] = useState(false);
     const [editFormData, setEditFormData] = useState({
-        customer: { name: "", phone: "" },
+        customer: { name: "", phone: "", address: "" },
         items: []
     });
     const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
@@ -131,6 +133,7 @@ const OrdersPage = () => {
                 search === "" ||
                 o.customer?.name?.toLowerCase().includes(search.toLowerCase()) ||
                 o.customer?.phone?.includes(search) ||
+                o.customer?.address?.toLowerCase().includes(search.toLowerCase()) ||
                 o.items?.some((i) =>
                     i.product?.name?.toLowerCase().includes(search.toLowerCase())
                 ) ||
@@ -203,7 +206,8 @@ const OrdersPage = () => {
         setEditFormData({
             customer: { 
                 name: order.customer?.name || "", 
-                phone: order.customer?.phone || "" 
+                phone: order.customer?.phone || "",
+                address: order.customer?.address || ""
             },
             items: order.items?.map(item => ({
                 _id: item._id,
@@ -277,7 +281,7 @@ const OrdersPage = () => {
             <Paper sx={{ p: { xs: 1.5, sm: 2 }, mb: { xs: 2, sm: 3 } }} elevation={1}>
                 <TextField
                     fullWidth
-                    placeholder="Search by customer name, phone, product or order ID..."
+                    placeholder="Search by customer name, phone, address, product or order ID..."
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     variant="outlined"
@@ -391,6 +395,23 @@ const OrdersPage = () => {
                                                         {order.customer?.phone || 'No phone'}
                                                     </Typography>
                                                 </Box>
+                                                {order.customer?.address && (
+                                                    <Box display="flex" alignItems="center" gap={1} mb={0.5}>
+                                                        <LocationIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+                                                        <Typography 
+                                                            variant="body2" 
+                                                            color="text.secondary"
+                                                            sx={{
+                                                                overflow: 'hidden',
+                                                                textOverflow: 'ellipsis',
+                                                                whiteSpace: 'nowrap',
+                                                                maxWidth: { xs: '200px', sm: '300px' }
+                                                            }}
+                                                        >
+                                                            {order.customer.address}
+                                                        </Typography>
+                                                    </Box>
+                                                )}
                                                 <Typography variant="body2" color="text.primary" sx={{ mb: 0.5 }}>
                                                     {order.items?.[0]?.product?.name || 'No items'}
                                                     {order.items?.length > 1 && (
@@ -525,7 +546,8 @@ const OrdersPage = () => {
                         </DialogTitle>
                         <DialogContent dividers sx={{ px: { xs: 2, sm: 3 } }}>
                             {/* Customer Info */}
-                            <Typography variant="subtitle2" gutterBottom>
+                            <Typography variant="subtitle2" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <PersonIcon fontSize="small" />
                                 Customer Information
                             </Typography>
                             <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
@@ -537,7 +559,7 @@ const OrdersPage = () => {
                                             value={editFormData.customer.name}
                                             onChange={(e) => handleEditChange('customer.name', e.target.value)}
                                             size="small"
-                                            sx={{ mb: 1 }}
+                                            sx={{ mb: 1.5 }}
                                         />
                                         <TextField
                                             fullWidth
@@ -545,22 +567,58 @@ const OrdersPage = () => {
                                             value={editFormData.customer.phone}
                                             onChange={(e) => handleEditChange('customer.phone', e.target.value)}
                                             size="small"
+                                            sx={{ mb: 1.5 }}
+                                        />
+                                        <TextField
+                                            fullWidth
+                                            label="Address"
+                                            value={editFormData.customer.address}
+                                            onChange={(e) => handleEditChange('customer.address', e.target.value)}
+                                            size="small"
+                                            multiline
+                                            rows={2}
+                                            InputProps={{
+                                                startAdornment: (
+                                                    <InputAdornment position="start">
+                                                        <LocationIcon color="action" fontSize="small" />
+                                                    </InputAdornment>
+                                                )
+                                            }}
                                         />
                                     </>
                                 ) : (
                                     <>
-                                        <Typography>
-                                            <strong>Name:</strong> {selectedOrder.customer?.name}
-                                        </Typography>
-                                        <Typography>
-                                            <strong>Phone:</strong> {selectedOrder.customer?.phone}
-                                        </Typography>
+                                        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: 1 }}>
+                                            <PersonIcon sx={{ fontSize: 20, color: 'text.secondary', mt: 0.2 }} />
+                                            <Box>
+                                                <Typography variant="body1" fontWeight="medium">
+                                                    {selectedOrder.customer?.name || 'N/A'}
+                                                </Typography>
+                                                <Typography variant="body2" color="text.secondary">
+                                                    {selectedOrder.customer?.phone || 'No phone'}
+                                                </Typography>
+                                            </Box>
+                                        </Box>
+                                        {selectedOrder.customer?.address && (
+                                            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                                                <LocationIcon sx={{ fontSize: 20, color: 'text.secondary', mt: 0.2 }} />
+                                                <Box>
+                                                    <Typography variant="body2" color="text.secondary" fontWeight="medium">
+                                                        Delivery Address:
+                                                    </Typography>
+                                                    <Typography variant="body2">
+                                                        {selectedOrder.customer.address}
+                                                    </Typography>
+                                                </Box>
+                                            </Box>
+                                        )}
                                     </>
                                 )}
                             </Paper>
 
                             {/* Items */}
-                            <Typography variant="subtitle2" gutterBottom>
+                            <Typography variant="subtitle2" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <InventoryIcon fontSize="small" />
                                 Order Items
                             </Typography>
                             <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
@@ -614,10 +672,10 @@ const OrdersPage = () => {
                                     selectedOrder.items?.map((item, i) => (
                                         <Box key={i} sx={{ mb: 1 }}>
                                             <Typography>
-                                                <strong>{item.product?.name}</strong> - {item.size}
+                                                <strong>{item.product?.name}</strong> - Size: {item.size}
                                             </Typography>
                                             <Typography variant="body2" color="text.secondary">
-                                                Quantity: {item.quantity} × ₹{item.price}
+                                                Quantity: {item.quantity} × ₹{item.price?.toLocaleString()}
                                             </Typography>
                                             {i < selectedOrder.items.length - 1 && <Divider sx={{ my: 1 }} />}
                                         </Box>
@@ -626,7 +684,17 @@ const OrdersPage = () => {
                             </Paper>
 
                             {/* Total */}
-                            <Box display="flex" justifyContent="space-between" alignItems="center">
+                            <Box 
+                                display="flex" 
+                                justifyContent="space-between" 
+                                alignItems="center"
+                                sx={{ 
+                                    p: 2, 
+                                    bgcolor: alpha(theme.palette.primary.main, 0.05),
+                                    borderRadius: 1,
+                                    mb: 2
+                                }}
+                            >
                                 <Typography variant="h6">
                                     Total Amount
                                 </Typography>
@@ -641,7 +709,8 @@ const OrdersPage = () => {
                             {/* Status Update */}
                             {!editMode && nextStatus(selectedOrder.status) && (
                                 <Box mt={2}>
-                                    <Typography variant="subtitle2" gutterBottom>
+                                    <Typography variant="subtitle2" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                        <ShippingIcon fontSize="small" />
                                         Update Status
                                     </Typography>
                                     <FormControl fullWidth size="small">
