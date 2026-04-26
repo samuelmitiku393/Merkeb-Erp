@@ -41,6 +41,10 @@ import {
     Select,
     MenuItem,
     CircularProgress,
+    Collapse,
+    Card,
+    CardContent,
+    LinearProgress,
 } from "@mui/material";
 import {
     Person as PersonIcon,
@@ -67,6 +71,12 @@ import {
     Refresh as RefreshIcon,
     AccessTime as TimeIcon,
     Category as CategoryIcon,
+    ExpandMore as ExpandMoreIcon,
+    ExpandLess as ExpandLessIcon,
+    Assessment as AssessmentIcon,
+    Download as DownloadIcon,
+    CalendarMonth as CalendarIcon,
+    TrendingUp as TrendingUpIcon,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
@@ -104,7 +114,6 @@ const Profile = () => {
         endDate: ''
     });
     const [selectedLog, setSelectedLog] = useState(null);
-    const [detailOpen, setDetailOpen] = useState(false);
     const [filterOptions, setFilterOptions] = useState({
         actions: [],
         entities: [],
@@ -112,6 +121,17 @@ const Profile = () => {
     });
     const [auditStats, setAuditStats] = useState(null);
     const [auditDetailDialogOpen, setAuditDetailDialogOpen] = useState(false);
+    const [filtersExpanded, setFiltersExpanded] = useState(false);
+    const [activeFiltersCount, setActiveFiltersCount] = useState(0);
+
+    // Report states
+    const [reportType, setReportType] = useState("monthly");
+    const [reportMonth, setReportMonth] = useState(new Date().getMonth() + 1);
+    const [reportYear, setReportYear] = useState(new Date().getFullYear());
+    const [reportLoading, setReportLoading] = useState(false);
+    const [reportProgress, setReportProgress] = useState(0);
+    const [reportPreview, setReportPreview] = useState(null);
+    const [reportDialogOpen, setReportDialogOpen] = useState(false);
 
     const [profileData, setProfileData] = useState({
         username: user?.username || '',
@@ -137,12 +157,30 @@ const Profile = () => {
         twoFactorAuth: false
     });
 
+    const months = [
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+    ];
+
+    const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i);
+
     useEffect(() => {
         const savedSettings = localStorage.getItem('userSettings');
         if (savedSettings) {
             setSettings(JSON.parse(savedSettings));
         }
     }, []);
+
+    // Count active filters
+    useEffect(() => {
+        let count = 0;
+        if (auditFilters.action) count++;
+        if (auditFilters.entity) count++;
+        if (auditFilters.search) count++;
+        if (auditFilters.startDate) count++;
+        if (auditFilters.endDate) count++;
+        setActiveFiltersCount(count);
+    }, [auditFilters]);
 
     // Fetch audit logs when tab changes to audit trail
     useEffect(() => {
@@ -260,7 +298,6 @@ const Profile = () => {
         setSettings(newSettings);
         localStorage.setItem('userSettings', JSON.stringify(newSettings));
         
-        // Log settings change to audit
         if (user?.role === 'admin') {
             API.post('/audit/settings-change', {
                 setting,
@@ -370,6 +407,10 @@ const Profile = () => {
         fetchAuditStats();
     };
 
+    const toggleFilters = () => {
+        setFiltersExpanded(!filtersExpanded);
+    };
+
     const getActionColor = (action) => {
         const colors = {
             CREATE: 'success',
@@ -390,6 +431,101 @@ const Profile = () => {
             return format(new Date(date), 'MMM dd, yyyy HH:mm:ss');
         } catch {
             return 'Invalid date';
+        }
+    };
+
+    // Report handlers
+    const handleGenerateReport = async () => {
+        setReportLoading(true);
+        setReportProgress(0);
+        
+        // Simulate progress
+        const progressInterval = setInterval(() => {
+            setReportProgress(prev => {
+                if (prev >= 90) {
+                    clearInterval(progressInterval);
+                    return 90;
+                }
+                return prev + 10;
+            });
+        }, 300);
+
+        try {
+            const params = reportType === "monthly" 
+                ? { month: reportMonth, year: reportYear }
+                : { year: reportYear };
+
+            const response = await API.get(`/reports/${reportType}`, {
+                params,
+                responseType: "blob"
+            });
+
+            clearInterval(progressInterval);
+            setReportProgress(100);
+
+            // Create download link
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            
+            // Store preview data
+            setReportPreview({
+                url,
+                type: reportType,
+                month: reportType === 'monthly' ? reportMonth : null,
+                year: reportYear
+            });
+
+            // Auto download
+            const link = document.createElement("a");
+            link.href = url;
+            
+            const fileName = reportType === "monthly"
+                ? `Monthly_Report_${months[reportMonth - 1]}_${reportYear}.xlsx`
+                : `Yearly_Report_${reportYear}.xlsx`;
+            
+            link.setAttribute("download", fileName);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+
+            setSnackbar({
+                open: true,
+                message: 'Report generated successfully!',
+                severity: 'success'
+            });
+
+            setTimeout(() => setReportProgress(0), 1000);
+
+        } catch (error) {
+            clearInterval(progressInterval);
+            setReportProgress(0);
+            console.error("Error generating report:", error);
+            setSnackbar({
+                open: true,
+                message: 'Failed to generate report. Please try again.',
+                severity: 'error'
+            });
+        } finally {
+            setReportLoading(false);
+        }
+    };
+
+    const handleViewReportSummary = () => {
+        setReportDialogOpen(true);
+    };
+
+    // Quick stats for reports section
+    const reportQuickStats = {
+        monthly: {
+            title: "Monthly Report",
+            description: "Detailed monthly analysis including sales, orders, products, and customer insights",
+            icon: <CalendarIcon sx={{ fontSize: 40 }} />,
+            color: theme.palette.primary.main
+        },
+        yearly: {
+            title: "Yearly Report",
+            description: "Year-over-year comparison with monthly breakdowns and trend analysis",
+            icon: <TrendingUpIcon sx={{ fontSize: 40 }} />,
+            color: theme.palette.secondary.main
         }
     };
 
@@ -426,6 +562,13 @@ const Profile = () => {
                             icon={<HistoryIcon />} 
                             iconPosition="start" 
                             label="Audit Trail" 
+                        />
+                    )}
+                    {user?.role === 'admin' && (
+                        <Tab 
+                            icon={<AssessmentIcon />} 
+                            iconPosition="start" 
+                            label="Reports" 
                         />
                     )}
                 </Tabs>
@@ -661,102 +804,207 @@ const Profile = () => {
                             </Grid>
                         )}
 
-                        {/* Audit Filters */}
-                        <Paper sx={{ p: 2, mb: 3, borderRadius: 2 }}>
-                            <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between">
-                                <Stack direction="row" spacing={1} alignItems="center">
+                        {/* Collapsible Filter Section */}
+                        <Paper sx={{ mb: 3, borderRadius: 2, overflow: 'hidden' }}>
+                            <Box 
+                                sx={{ 
+                                    p: 2, 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    justifyContent: 'space-between',
+                                    cursor: 'pointer',
+                                    '&:hover': {
+                                        bgcolor: 'action.hover'
+                                    }
+                                }}
+                                onClick={toggleFilters}
+                            >
+                                <Stack direction="row" spacing={2} alignItems="center">
                                     <FilterIcon color="action" />
                                     <Typography variant="subtitle1" fontWeight="500">
                                         Filters
                                     </Typography>
+                                    {activeFiltersCount > 0 && (
+                                        <Chip 
+                                            label={`${activeFiltersCount} active`} 
+                                            size="small" 
+                                            color="primary" 
+                                        />
+                                    )}
                                 </Stack>
-                                <Button
-                                    variant="outlined"
-                                    size="small"
-                                    startIcon={<RefreshIcon />}
-                                    onClick={refreshAuditLogs}
-                                >
-                                    Refresh
-                                </Button>
-                            </Stack>
-                            <Grid container spacing={2} sx={{ mt: 1 }}>
-                                <Grid item xs={12} sm={6} md={3}>
-                                    <TextField
-                                        fullWidth
-                                        size="small"
-                                        placeholder="Search descriptions..."
-                                        value={auditFilters.search}
-                                        onChange={(e) => handleAuditFilterChange('search', e.target.value)}
-                                        InputProps={{
-                                            startAdornment: <SearchIcon sx={{ mr: 1, color: 'action.active' }} />
-                                        }}
-                                    />
-                                </Grid>
-                                <Grid item xs={12} sm={6} md={2}>
-                                    <FormControl fullWidth size="small">
-                                        <InputLabel>Action</InputLabel>
-                                        <Select
-                                            value={auditFilters.action}
-                                            onChange={(e) => handleAuditFilterChange('action', e.target.value)}
-                                            label="Action"
+                                <Stack direction="row" spacing={1} alignItems="center">
+                                    {activeFiltersCount > 0 && (
+                                        <Button
+                                            size="small"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                clearAuditFilters();
+                                            }}
+                                            startIcon={<ClearIcon />}
                                         >
-                                            <MenuItem value="">All Actions</MenuItem>
-                                            {filterOptions.actions?.map(action => (
-                                                <MenuItem key={action} value={action}>{action}</MenuItem>
-                                            ))}
-                                        </Select>
-                                    </FormControl>
-                                </Grid>
-                                <Grid item xs={12} sm={6} md={2}>
-                                    <FormControl fullWidth size="small">
-                                        <InputLabel>Entity</InputLabel>
-                                        <Select
-                                            value={auditFilters.entity}
-                                            onChange={(e) => handleAuditFilterChange('entity', e.target.value)}
-                                            label="Entity"
-                                        >
-                                            <MenuItem value="">All Entities</MenuItem>
-                                            {filterOptions.entities?.map(entity => (
-                                                <MenuItem key={entity} value={entity}>{entity}</MenuItem>
-                                            ))}
-                                        </Select>
-                                    </FormControl>
-                                </Grid>
-                                <Grid item xs={12} sm={6} md={2}>
-                                    <TextField
-                                        fullWidth
-                                        size="small"
-                                        type="date"
-                                        label="Start Date"
-                                        value={auditFilters.startDate}
-                                        onChange={(e) => handleAuditFilterChange('startDate', e.target.value)}
-                                        InputLabelProps={{ shrink: true }}
-                                    />
-                                </Grid>
-                                <Grid item xs={12} sm={6} md={2}>
-                                    <TextField
-                                        fullWidth
-                                        size="small"
-                                        type="date"
-                                        label="End Date"
-                                        value={auditFilters.endDate}
-                                        onChange={(e) => handleAuditFilterChange('endDate', e.target.value)}
-                                        InputLabelProps={{ shrink: true }}
-                                    />
-                                </Grid>
-                                <Grid item xs={12} sm={6} md={1}>
-                                    <Button
-                                        variant="outlined"
-                                        onClick={clearAuditFilters}
-                                        startIcon={<ClearIcon />}
-                                        fullWidth
-                                        size="small"
-                                    >
-                                        Clear
-                                    </Button>
-                                </Grid>
-                            </Grid>
+                                            Clear All
+                                        </Button>
+                                    )}
+                                    <IconButton size="small">
+                                        {filtersExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                                    </IconButton>
+                                </Stack>
+                            </Box>
+
+                            <Collapse in={filtersExpanded}>
+                                <Divider />
+                                <Box sx={{ p: 2 }}>
+                                    <Grid container spacing={2}>
+                                        <Grid item xs={12} sm={6} md={4}>
+                                            <TextField
+                                                fullWidth
+                                                size="small"
+                                                label="Search"
+                                                placeholder="Search descriptions..."
+                                                value={auditFilters.search}
+                                                onChange={(e) => handleAuditFilterChange('search', e.target.value)}
+                                                InputProps={{
+                                                    startAdornment: (
+                                                        <InputAdornment position="start">
+                                                            <SearchIcon fontSize="small" color="action" />
+                                                        </InputAdornment>
+                                                    ),
+                                                    endAdornment: auditFilters.search && (
+                                                        <InputAdornment position="end">
+                                                            <IconButton
+                                                                size="small"
+                                                                onClick={() => handleAuditFilterChange('search', '')}
+                                                            >
+                                                                <CloseIcon fontSize="small" />
+                                                            </IconButton>
+                                                        </InputAdornment>
+                                                    )
+                                                }}
+                                            />
+                                        </Grid>
+                                        <Grid item xs={12} sm={6} md={4}>
+                                            <FormControl fullWidth size="small">
+                                                <InputLabel>Action</InputLabel>
+                                                <Select
+                                                    value={auditFilters.action}
+                                                    onChange={(e) => handleAuditFilterChange('action', e.target.value)}
+                                                    label="Action"
+                                                    endAdornment={auditFilters.action && (
+                                                        <InputAdornment position="end" sx={{ mr: 2 }}>
+                                                            <IconButton
+                                                                size="small"
+                                                                onClick={() => handleAuditFilterChange('action', '')}
+                                                            >
+                                                                <CloseIcon fontSize="small" />
+                                                            </IconButton>
+                                                        </InputAdornment>
+                                                    )}
+                                                >
+                                                    <MenuItem value="">All Actions</MenuItem>
+                                                    {filterOptions.actions?.map(action => (
+                                                        <MenuItem key={action} value={action}>{action}</MenuItem>
+                                                    ))}
+                                                </Select>
+                                            </FormControl>
+                                        </Grid>
+                                        <Grid item xs={12} sm={6} md={4}>
+                                            <FormControl fullWidth size="small">
+                                                <InputLabel>Entity</InputLabel>
+                                                <Select
+                                                    value={auditFilters.entity}
+                                                    onChange={(e) => handleAuditFilterChange('entity', e.target.value)}
+                                                    label="Entity"
+                                                    endAdornment={auditFilters.entity && (
+                                                        <InputAdornment position="end" sx={{ mr: 2 }}>
+                                                            <IconButton
+                                                                size="small"
+                                                                onClick={() => handleAuditFilterChange('entity', '')}
+                                                            >
+                                                                <CloseIcon fontSize="small" />
+                                                            </IconButton>
+                                                        </InputAdornment>
+                                                    )}
+                                                >
+                                                    <MenuItem value="">All Entities</MenuItem>
+                                                    {filterOptions.entities?.map(entity => (
+                                                        <MenuItem key={entity} value={entity}>{entity}</MenuItem>
+                                                    ))}
+                                                </Select>
+                                            </FormControl>
+                                        </Grid>
+                                        <Grid item xs={12} sm={6} md={4}>
+                                            <TextField
+                                                fullWidth
+                                                size="small"
+                                                type="date"
+                                                label="Start Date"
+                                                value={auditFilters.startDate}
+                                                onChange={(e) => handleAuditFilterChange('startDate', e.target.value)}
+                                                InputLabelProps={{ shrink: true }}
+                                                InputProps={{
+                                                    endAdornment: auditFilters.startDate && (
+                                                        <InputAdornment position="end">
+                                                            <IconButton
+                                                                size="small"
+                                                                onClick={() => handleAuditFilterChange('startDate', '')}
+                                                            >
+                                                                <CloseIcon fontSize="small" />
+                                                            </IconButton>
+                                                        </InputAdornment>
+                                                    )
+                                                }}
+                                            />
+                                        </Grid>
+                                        <Grid item xs={12} sm={6} md={4}>
+                                            <TextField
+                                                fullWidth
+                                                size="small"
+                                                type="date"
+                                                label="End Date"
+                                                value={auditFilters.endDate}
+                                                onChange={(e) => handleAuditFilterChange('endDate', e.target.value)}
+                                                InputLabelProps={{ shrink: true }}
+                                                InputProps={{
+                                                    endAdornment: auditFilters.endDate && (
+                                                        <InputAdornment position="end">
+                                                            <IconButton
+                                                                size="small"
+                                                                onClick={() => handleAuditFilterChange('endDate', '')}
+                                                            >
+                                                                <CloseIcon fontSize="small" />
+                                                            </IconButton>
+                                                        </InputAdornment>
+                                                    )
+                                                }}
+                                            />
+                                        </Grid>
+                                        <Grid item xs={12} sm={6} md={4}>
+                                            <Button
+                                                variant="outlined"
+                                                onClick={clearAuditFilters}
+                                                startIcon={<ClearIcon />}
+                                                fullWidth
+                                                size="small"
+                                                disabled={activeFiltersCount === 0}
+                                            >
+                                                Clear Filters
+                                            </Button>
+                                        </Grid>
+                                    </Grid>
+                                </Box>
+                            </Collapse>
                         </Paper>
+
+                        <Box sx={{ mb: 2, display: 'flex', justifyContent: 'flex-end' }}>
+                            <Button
+                                variant="outlined"
+                                size="small"
+                                startIcon={<RefreshIcon />}
+                                onClick={refreshAuditLogs}
+                            >
+                                Refresh Data
+                            </Button>
+                        </Box>
 
                         {/* Audit Log Table */}
                         <Paper sx={{ borderRadius: 2 }}>
@@ -977,6 +1225,418 @@ const Profile = () => {
                             </DialogContent>
                             <DialogActions>
                                 <Button onClick={() => setAuditDetailDialogOpen(false)}>Close</Button>
+                            </DialogActions>
+                        </Dialog>
+                    </Box>
+                )}
+
+                {/* Reports Tab Content */}
+                {activeTab === 2 && user?.role === 'admin' && (
+                    <Box>
+                        <Grid container spacing={3}>
+                            {/* Report Type Selection Cards */}
+                            <Grid item xs={12} md={6}>
+                                <Card 
+                                    sx={{ 
+                                        borderRadius: 2,
+                                        cursor: 'pointer',
+                                        border: reportType === 'monthly' ? 2 : 1,
+                                        borderColor: reportType === 'monthly' ? 'primary.main' : 'divider',
+                                        transition: 'all 0.3s',
+                                        '&:hover': {
+                                            transform: 'translateY(-4px)',
+                                            boxShadow: 4
+                                        }
+                                    }}
+                                    onClick={() => setReportType('monthly')}
+                                >
+                                    <CardContent sx={{ textAlign: 'center', py: 4 }}>
+                                        <CalendarIcon 
+                                            sx={{ 
+                                                fontSize: 48, 
+                                                color: 'primary.main',
+                                                mb: 2 
+                                            }} 
+                                        />
+                                        <Typography variant="h5" gutterBottom fontWeight="600">
+                                            Monthly Report
+                                        </Typography>
+                                        <Typography variant="body2" color="text.secondary">
+                                            Detailed monthly analysis including sales, orders, products, and customer insights
+                                        </Typography>
+                                        {reportType === 'monthly' && (
+                                            <Chip 
+                                                label="Selected" 
+                                                color="primary" 
+                                                size="small" 
+                                                sx={{ mt: 2 }} 
+                                            />
+                                        )}
+                                    </CardContent>
+                                </Card>
+                            </Grid>
+
+                            <Grid item xs={12} md={6}>
+                                <Card 
+                                    sx={{ 
+                                        borderRadius: 2,
+                                        cursor: 'pointer',
+                                        border: reportType === 'yearly' ? 2 : 1,
+                                        borderColor: reportType === 'yearly' ? 'secondary.main' : 'divider',
+                                        transition: 'all 0.3s',
+                                        '&:hover': {
+                                            transform: 'translateY(-4px)',
+                                            boxShadow: 4
+                                        }
+                                    }}
+                                    onClick={() => setReportType('yearly')}
+                                >
+                                    <CardContent sx={{ textAlign: 'center', py: 4 }}>
+                                        <TrendingUpIcon 
+                                            sx={{ 
+                                                fontSize: 48, 
+                                                color: 'secondary.main',
+                                                mb: 2 
+                                            }} 
+                                        />
+                                        <Typography variant="h5" gutterBottom fontWeight="600">
+                                            Yearly Report
+                                        </Typography>
+                                        <Typography variant="body2" color="text.secondary">
+                                            Year-over-year comparison with monthly breakdowns and trend analysis
+                                        </Typography>
+                                        {reportType === 'yearly' && (
+                                            <Chip 
+                                                label="Selected" 
+                                                color="secondary" 
+                                                size="small" 
+                                                sx={{ mt: 2 }} 
+                                            />
+                                        )}
+                                    </CardContent>
+                                </Card>
+                            </Grid>
+
+                            {/* Report Configuration */}
+                            <Grid item xs={12}>
+                                <Paper sx={{ p: 3, borderRadius: 2 }}>
+                                    <Typography variant="h6" fontWeight="600" gutterBottom>
+                                        Configure Report
+                                    </Typography>
+                                    
+                                    <Grid container spacing={3} alignItems="center">
+                                        {reportType === 'monthly' && (
+                                            <Grid item xs={12} sm={6}>
+                                                <FormControl fullWidth>
+                                                    <InputLabel>Month</InputLabel>
+                                                    <Select
+                                                        value={reportMonth}
+                                                        onChange={(e) => setReportMonth(e.target.value)}
+                                                        label="Month"
+                                                    >
+                                                        {months.map((monthName, index) => (
+                                                            <MenuItem key={index} value={index + 1}>
+                                                                {monthName}
+                                                            </MenuItem>
+                                                        ))}
+                                                    </Select>
+                                                </FormControl>
+                                            </Grid>
+                                        )}
+                                        
+                                        <Grid item xs={12} sm={reportType === 'monthly' ? 6 : 6}>
+                                            <FormControl fullWidth>
+                                                <InputLabel>Year</InputLabel>
+                                                <Select
+                                                    value={reportYear}
+                                                    onChange={(e) => setReportYear(e.target.value)}
+                                                    label="Year"
+                                                >
+                                                    {years.map((yr) => (
+                                                        <MenuItem key={yr} value={yr}>{yr}</MenuItem>
+                                                    ))}
+                                                </Select>
+                                            </FormControl>
+                                        </Grid>
+
+                                        <Grid item xs={12} sm={reportType === 'monthly' ? 12 : 6}>
+                                            <Stack direction="row" spacing={2}>
+                                                <Button
+                                                    variant="contained"
+                                                    size="large"
+                                                    startIcon={<DownloadIcon />}
+                                                    onClick={handleGenerateReport}
+                                                    disabled={reportLoading}
+                                                    fullWidth
+                                                    sx={{ py: 1.5 }}
+                                                >
+                                                    {reportLoading ? 'Generating...' : 'Generate & Download Report'}
+                                                </Button>
+                                                
+                                                <Tooltip title="Preview report summary">
+                                                    <Button
+                                                        variant="outlined"
+                                                        size="large"
+                                                        startIcon={<AssessmentIcon />}
+                                                        onClick={handleViewReportSummary}
+                                                        disabled={reportLoading}
+                                                    >
+                                                        Summary
+                                                    </Button>
+                                                </Tooltip>
+                                            </Stack>
+                                        </Grid>
+                                    </Grid>
+
+                                    {/* Progress Bar */}
+                                    {reportLoading && (
+                                        <Box sx={{ mt: 3 }}>
+                                            <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 1 }}>
+                                                <CircularProgress size={20} />
+                                                <Typography variant="body2" color="text.secondary">
+                                                    Generating report...
+                                                </Typography>
+                                            </Stack>
+                                            <LinearProgress 
+                                                variant="determinate" 
+                                                value={reportProgress} 
+                                                sx={{ height: 6, borderRadius: 3 }}
+                                            />
+                                        </Box>
+                                    )}
+
+                                    {/* Success Message */}
+                                    {reportProgress === 100 && !reportLoading && (
+                                        <Alert severity="success" sx={{ mt: 3 }}>
+                                            Report generated successfully! Check your downloads folder.
+                                        </Alert>
+                                    )}
+                                </Paper>
+                            </Grid>
+
+                            {/* Report Features */}
+                            <Grid item xs={12}>
+                                <Paper sx={{ p: 3, borderRadius: 2 }}>
+                                    <Typography variant="h6" fontWeight="600" gutterBottom>
+                                        Report Features
+                                    </Typography>
+                                    
+                                    <Grid container spacing={2}>
+                                        {reportType === 'monthly' ? (
+                                            <>
+                                                <Grid item xs={12} sm={6} md={3}>
+                                                    <Card sx={{ bgcolor: 'primary.light', color: 'white', borderRadius: 2 }}>
+                                                        <CardContent>
+                                                            <Typography variant="h6" gutterBottom>
+                                                                Sales Summary
+                                                            </Typography>
+                                                            <Typography variant="body2">
+                                                                Revenue, costs, profits overview
+                                                            </Typography>
+                                                        </CardContent>
+                                                    </Card>
+                                                </Grid>
+                                                <Grid item xs={12} sm={6} md={3}>
+                                                    <Card sx={{ bgcolor: 'info.light', color: 'white', borderRadius: 2 }}>
+                                                        <CardContent>
+                                                            <Typography variant="h6" gutterBottom>
+                                                                Detailed Orders
+                                                            </Typography>
+                                                            <Typography variant="body2">
+                                                                Complete order history
+                                                            </Typography>
+                                                        </CardContent>
+                                                    </Card>
+                                                </Grid>
+                                                <Grid item xs={12} sm={6} md={3}>
+                                                    <Card sx={{ bgcolor: 'success.light', color: 'white', borderRadius: 2 }}>
+                                                        <CardContent>
+                                                            <Typography variant="h6" gutterBottom>
+                                                                Product Analysis
+                                                            </Typography>
+                                                            <Typography variant="body2">
+                                                                Sales by product and size
+                                                            </Typography>
+                                                        </CardContent>
+                                                    </Card>
+                                                </Grid>
+                                                <Grid item xs={12} sm={6} md={3}>
+                                                    <Card sx={{ bgcolor: 'warning.light', color: 'white', borderRadius: 2 }}>
+                                                        <CardContent>
+                                                            <Typography variant="h6" gutterBottom>
+                                                                Daily Breakdown
+                                                            </Typography>
+                                                            <Typography variant="body2">
+                                                                Day-by-day sales analysis
+                                                            </Typography>
+                                                        </CardContent>
+                                                    </Card>
+                                                </Grid>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Grid item xs={12} sm={6} md={4}>
+                                                    <Card sx={{ bgcolor: 'secondary.light', color: 'white', borderRadius: 2 }}>
+                                                        <CardContent>
+                                                            <Typography variant="h6" gutterBottom>
+                                                                Monthly Comparison
+                                                            </Typography>
+                                                            <Typography variant="body2">
+                                                                12-month performance tracking
+                                                            </Typography>
+                                                        </CardContent>
+                                                    </Card>
+                                                </Grid>
+                                                <Grid item xs={12} sm={6} md={4}>
+                                                    <Card sx={{ bgcolor: 'info.light', color: 'white', borderRadius: 2 }}>
+                                                        <CardContent>
+                                                            <Typography variant="h6" gutterBottom>
+                                                                Trend Analysis
+                                                            </Typography>
+                                                            <Typography variant="body2">
+                                                                Revenue and growth patterns
+                                                            </Typography>
+                                                        </CardContent>
+                                                    </Card>
+                                                </Grid>
+                                                <Grid item xs={12} sm={6} md={4}>
+                                                    <Card sx={{ bgcolor: 'success.light', color: 'white', borderRadius: 2 }}>
+                                                        <CardContent>
+                                                            <Typography variant="h6" gutterBottom>
+                                                                Annual Totals
+                                                            </Typography>
+                                                            <Typography variant="body2">
+                                                                Year-end summary statistics
+                                                            </Typography>
+                                                        </CardContent>
+                                                    </Card>
+                                                </Grid>
+                                            </>
+                                        )}
+                                    </Grid>
+                                </Paper>
+                            </Grid>
+                        </Grid>
+
+                        {/* Report Summary Dialog */}
+                        <Dialog
+                            open={reportDialogOpen}
+                            onClose={() => setReportDialogOpen(false)}
+                            maxWidth="md"
+                            fullWidth
+                        >
+                            <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                Report Summary
+                                <IconButton onClick={() => setReportDialogOpen(false)}>
+                                    <CloseIcon />
+                                </IconButton>
+                            </DialogTitle>
+                            <DialogContent>
+                                <Stack spacing={3} sx={{ mt: 1 }}>
+                                    <Alert severity="info">
+                                        This is a preview of what will be included in your report
+                                    </Alert>
+                                    
+                                    <Paper variant="outlined" sx={{ p: 2 }}>
+                                        <Typography variant="h6" gutterBottom color="primary">
+                                            {reportType === 'monthly' 
+                                                ? `${months[reportMonth - 1]} ${reportYear} Report`
+                                                : `${reportYear} Annual Report`
+                                            }
+                                        </Typography>
+                                        
+                                        <List>
+                                            {reportType === 'monthly' ? (
+                                                <>
+                                                    <ListItem>
+                                                        <ListItemIcon>
+                                                            <CheckCircleIcon color="success" />
+                                                        </ListItemIcon>
+                                                        <ListItemText 
+                                                            primary="Sales Summary"
+                                                            secondary="Total revenue, costs, profit margins, and key metrics"
+                                                        />
+                                                    </ListItem>
+                                                    <ListItem>
+                                                        <ListItemIcon>
+                                                            <CheckCircleIcon color="success" />
+                                                        </ListItemIcon>
+                                                        <ListItemText 
+                                                            primary="Detailed Orders"
+                                                            secondary="Complete list of all orders with customer information"
+                                                        />
+                                                    </ListItem>
+                                                    <ListItem>
+                                                        <ListItemIcon>
+                                                            <CheckCircleIcon color="success" />
+                                                        </ListItemIcon>
+                                                        <ListItemText 
+                                                            primary="Product Performance"
+                                                            secondary="Sales breakdown by product, size, and current stock levels"
+                                                        />
+                                                    </ListItem>
+                                                    <ListItem>
+                                                        <ListItemIcon>
+                                                            <CheckCircleIcon color="success" />
+                                                        </ListItemIcon>
+                                                        <ListItemText 
+                                                            primary="Daily Breakdown"
+                                                            secondary="Day-by-day sales analysis with order counts"
+                                                        />
+                                                    </ListItem>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <ListItem>
+                                                        <ListItemIcon>
+                                                            <CheckCircleIcon color="success" />
+                                                        </ListItemIcon>
+                                                        <ListItemText 
+                                                            primary="Monthly Breakdown"
+                                                            secondary="Performance data for all 12 months"
+                                                        />
+                                                    </ListItem>
+                                                    <ListItem>
+                                                        <ListItemIcon>
+                                                            <CheckCircleIcon color="success" />
+                                                        </ListItemIcon>
+                                                        <ListItemText 
+                                                            primary="Comparative Analysis"
+                                                            secondary="Month-over-month growth and trend identification"
+                                                        />
+                                                    </ListItem>
+                                                    <ListItem>
+                                                        <ListItemIcon>
+                                                            <CheckCircleIcon color="success" />
+                                                        </ListItemIcon>
+                                                        <ListItemText 
+                                                            primary="Annual Totals"
+                                                            secondary="Yearly revenue, costs, profits, and product sales"
+                                                        />
+                                                    </ListItem>
+                                                </>
+                                            )}
+                                        </List>
+                                    </Paper>
+
+                                    <Alert severity="success" variant="outlined">
+                                        Reports are generated in Excel format with multiple sheets, professional formatting, 
+                                        auto-filters, and color-coded data for easy analysis.
+                                    </Alert>
+                                </Stack>
+                            </DialogContent>
+                            <DialogActions>
+                                <Button onClick={() => setReportDialogOpen(false)}>Close</Button>
+                                <Button 
+                                    variant="contained"
+                                    onClick={() => {
+                                        setReportDialogOpen(false);
+                                        handleGenerateReport();
+                                    }}
+                                    startIcon={<DownloadIcon />}
+                                >
+                                    Generate Report
+                                </Button>
                             </DialogActions>
                         </Dialog>
                     </Box>

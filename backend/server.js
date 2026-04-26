@@ -11,6 +11,7 @@ import inventoryRoutes from "./routes/inventoryRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import auditRoutes from "./routes/auditRoutes.js"
+import reportRoutes from "./routes/reportRoutes.js";
 import { authenticateToken } from "./middleware/auth.js";
 import fs from "fs";
 import path from "path";
@@ -183,6 +184,7 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/inventory", inventoryRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/reports", reportRoutes);
 
 // Test route with error handling (protected)
 app.get("/api/test-product", async (req, res, next) => {
