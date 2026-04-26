@@ -2,7 +2,7 @@ import express from "express";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import User from "../models/User.js";
-import { authenticateToken } from "../middleware/auth.js";
+import { authenticateToken,  authorizeRoles } from "../middleware/auth.js";
 
 const router = express.Router();
 
@@ -116,5 +116,79 @@ router.get("/verify", authenticateToken, (req, res) => {
     user: req.user
   });
 });
+// Batch user registration (Admin only)
+router.post("/register/batch", authenticateToken, authorizeRoles("admin"), async (req, res, next) => {
+  try {
+    const { users } = req.body;
 
+    if (!users || !Array.isArray(users) || users.length === 0) {
+      return res.status(400).json({
+        message: "Users array is required"
+      });
+    }
+
+    const results = {
+      successful: [],
+      failed: []
+    };
+
+    for (const userData of users) {
+      try {
+        const { username, password, role } = userData;
+
+        // Validate
+        if (!username || !password) {
+          results.failed.push({
+            username: username || "unknown",
+            error: "Username and password are required"
+          });
+          continue;
+        }
+
+        // Check if exists
+        const existingUser = await User.findOne({ 
+          username: username.toLowerCase() 
+        });
+        
+        if (existingUser) {
+          results.failed.push({
+            username,
+            error: "Username already exists"
+          });
+          continue;
+        }
+
+        // Create user
+        const user = new User({
+          username: username.toLowerCase(),
+          password: password,
+          role: role || "user"
+        });
+
+        await user.hashPassword();
+        await user.save();
+
+        results.successful.push({
+          username: user.username,
+          role: user.role
+        });
+
+      } catch (error) {
+        results.failed.push({
+          username: userData.username || "unknown",
+          error: error.message
+        });
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Created ${results.successful.length} users, ${results.failed.length} failed`,
+      results
+    });
+
+  } catch (error) {
+    next(error);
+  }
+});
 export default router;
