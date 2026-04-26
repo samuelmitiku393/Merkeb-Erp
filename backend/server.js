@@ -10,6 +10,7 @@ import analyticsRoutes from "./routes/analyticsRoutes.js";
 import inventoryRoutes from "./routes/inventoryRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
+import auditRoutes from "./routes/auditRoutes.js"
 import { authenticateToken } from "./middleware/auth.js";
 import fs from "fs";
 import path from "path";
@@ -169,6 +170,7 @@ app.get("/api/health", (req, res) => {
 
 // Auth routes (public)
 app.use("/api/auth", authRoutes);
+app.use("/api/audit", auditRoutes);
 
 // ===== PROTECTED ROUTES =====
 // All routes below this middleware require authentication
