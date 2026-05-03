@@ -11,6 +11,7 @@ import {
   TableRow,
   TablePagination,
   Chip,
+  type ChipProps,
   IconButton,
   Tooltip,
   TextField,
@@ -25,7 +26,6 @@ import {
   DialogContent,
   DialogActions,
   Stack,
-  Alert,
   CircularProgress
 } from "@mui/material";
 import {
@@ -40,28 +40,29 @@ import {
 } from "@mui/icons-material";
 import { format } from "date-fns";
 import API from "../api/axios";
+import type { AuditLog, AuditFilters, AuditFilterOptions, AuditStats } from "../types";
 
 const AuditTrail = () => {
-  const [logs, setLogs] = useState([]);
+  const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(20);
   const [totalLogs, setTotalLogs] = useState(0);
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState<AuditFilters>({
     action: '',
     entity: '',
     search: '',
     startDate: '',
     endDate: ''
   });
-  const [selectedLog, setSelectedLog] = useState(null);
+  const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
-  const [filterOptions, setFilterOptions] = useState({
+  const [filterOptions, setFilterOptions] = useState<AuditFilterOptions>({
     actions: [],
     entities: [],
     users: []
   });
-  const [stats, setStats] = useState(null);
+  const [stats, setStats] = useState<AuditStats | null>(null);
 
   useEffect(() => {
     fetchLogs();
@@ -77,8 +78,11 @@ const AuditTrail = () => {
         ...filters
       };
 
-      const response = await API.get('/audit', { params });
-      
+      const response = await API.get<{
+        success: boolean;
+        data: { logs: AuditLog[]; pagination: { totalLogs: number }; filters: AuditFilterOptions };
+      }>('/audit', { params });
+
       if (response.data.success) {
         setLogs(response.data.data.logs);
         setTotalLogs(response.data.data.pagination.totalLogs);
@@ -93,7 +97,7 @@ const AuditTrail = () => {
 
   const fetchStats = async () => {
     try {
-      const response = await API.get('/audit/stats/overview');
+      const response = await API.get<{ success: boolean; data: AuditStats }>('/audit/stats/overview');
       if (response.data.success) {
         setStats(response.data.data);
       }
@@ -102,16 +106,16 @@ const AuditTrail = () => {
     }
   };
 
-  const handleChangePage = (event, newPage) => {
+  const handleChangePage = (_event: React.MouseEvent<HTMLButtonElement> | null, newPage: number) => {
     setPage(newPage);
   };
 
-  const handleChangeRowsPerPage = (event) => {
+  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
   };
 
-  const handleFilterChange = (field, value) => {
+  const handleFilterChange = (field: keyof AuditFilters, value: string) => {
     setFilters(prev => ({ ...prev, [field]: value }));
     setPage(0);
   };
@@ -126,13 +130,13 @@ const AuditTrail = () => {
     });
   };
 
-  const viewDetails = (log) => {
+  const viewDetails = (log: AuditLog) => {
     setSelectedLog(log);
     setDetailOpen(true);
   };
 
-  const getActionColor = (action) => {
-    const colors = {
+  const getActionColor = (action: string): ChipProps['color'] => {
+    const colors: Record<string, ChipProps['color']> = {
       CREATE: 'success',
       UPDATE: 'info',
       DELETE: 'error',
@@ -142,10 +146,10 @@ const AuditTrail = () => {
       PROFILE_UPDATE: 'secondary',
       SETTINGS_CHANGE: 'info'
     };
-    return colors[action] || 'default';
+    return colors[action] ?? 'default';
   };
 
-  const formatDate = (date) => {
+  const formatDate = (date: string) => {
     return format(new Date(date), 'MMM dd, yyyy HH:mm:ss');
   };
 
@@ -159,7 +163,7 @@ const AuditTrail = () => {
             Audit Trail
           </Typography>
         </Stack>
-        <Chip 
+        <Chip
           label={`${totalLogs} total entries`}
           color="primary"
           variant="outlined"
@@ -202,10 +206,10 @@ const AuditTrail = () => {
           <Grid item xs={12} sm={6} md={3}>
             <Paper sx={{ p: 2, textAlign: 'center' }}>
               <Typography variant="h4" color="warning.main">
-                {stats.actionBreakdown?.[0]?.count || 0}
+                {stats.actionBreakdown?.[0]?.count ?? 0}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Most Common: {stats.actionBreakdown?.[0]?._id || 'N/A'}
+                Most Common: {stats.actionBreakdown?.[0]?._id ?? 'N/A'}
               </Typography>
             </Paper>
           </Grid>
@@ -445,7 +449,7 @@ const AuditTrail = () => {
                     Entity ID
                   </Typography>
                   <Typography variant="body2">
-                    {selectedLog.entityId || 'N/A'}
+                    {selectedLog.entityId ?? 'N/A'}
                   </Typography>
                 </Grid>
                 <Grid item xs={6}>
@@ -461,7 +465,7 @@ const AuditTrail = () => {
                     IP Address
                   </Typography>
                   <Typography variant="body2">
-                    {selectedLog.ipAddress || 'N/A'}
+                    {selectedLog.ipAddress ?? 'N/A'}
                   </Typography>
                 </Grid>
               </Grid>

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import type { DashboardStats, LowStockItem, ProductStat, ProfitData, RestockSuggestion } from "../types";
 import {
     Box,
     Card,
@@ -54,15 +55,15 @@ const Dashboard = () => {
     const isTablet = useMediaQuery(theme.breakpoints.down('md'));
     const isDesktop = useMediaQuery(theme.breakpoints.up('lg'));
 
-    const [stats, setStats] = useState(null);
-    const [lowStock, setLowStock] = useState([]);
-    const [productStats, setProductStats] = useState([]);
-    const [profit, setProfit] = useState(null);
-    const [restock, setRestock] = useState([]);
+    const [stats, setStats] = useState<DashboardStats | null>(null);
+    const [lowStock, setLowStock] = useState<LowStockItem[]>([]);
+    const [productStats, setProductStats] = useState<ProductStat[]>([]);
+    const [profit, setProfit] = useState<ProfitData | null>(null);
+    const [restock, setRestock] = useState<RestockSuggestion[]>([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
+    const [error, setError] = useState<string | null>(null);
     const [refreshing, setRefreshing] = useState(false);
-    const [lastUpdated, setLastUpdated] = useState(new Date());
+    const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
     const fetchAllData = async () => {
         try {
@@ -107,31 +108,31 @@ const Dashboard = () => {
         return () => clearInterval(interval);
     }, []);
 
-    const formatNumber = (value, defaultValue = 0) => {
+    const formatNumber = (value: unknown, defaultValue = 0): number => {
         if (value === null || value === undefined) return defaultValue;
         const num = Number(value);
         return isNaN(num) ? defaultValue : num;
     };
 
-    const formatCurrency = (value) => {
+    const formatCurrency = (value: unknown): string => {
         const num = formatNumber(value);
         return num.toLocaleString('en-IN');
     };
 
-    const formatPercentage = (value) => {
+    const formatPercentage = (value: unknown): string => {
         const num = formatNumber(value);
         return num.toFixed(1);
     };
 
-    const getRestockPriority = (item) => {
+    const getRestockPriority = (item: RestockSuggestion): { color: 'error' | 'warning' | 'info'; label: string; bg: string } => {
         const stockRatio = item.currentStock / (item.reorderQty || 1);
         if (stockRatio < 0.5) return { color: 'error', label: 'URGENT', bg: alpha(theme.palette.error.main, 0.1) };
         if (stockRatio < 1) return { color: 'warning', label: 'PRIORITY', bg: alpha(theme.palette.warning.main, 0.1) };
         return { color: 'info', label: 'RECOMMENDED', bg: alpha(theme.palette.info.main, 0.1) };
     };
 
-    const getTimeAgo = (date) => {
-        const seconds = Math.floor((new Date() - date) / 1000);
+    const getTimeAgo = (date: Date): string => {
+        const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
         if (seconds < 60) return 'just now';
         const minutes = Math.floor(seconds / 60);
         if (minutes < 60) return `${minutes}m ago`;
@@ -169,10 +170,10 @@ const Dashboard = () => {
             label: "Pending",
             value: formatNumber(stats?.pendingOrders),
             icon: Schedule,
-            color: stats?.pendingOrders > 10 ? theme.palette.error.main : theme.palette.info.main,
-            trend: stats?.pendingOrders > 10 ? { value: 5, isUp: true } : { value: 2, isUp: false },
-            accent: stats?.pendingOrders > 10 ? theme.palette.error.main : theme.palette.info.main,
-            alert: stats?.pendingOrders > 10
+            color: (stats?.pendingOrders || 0) > 10 ? theme.palette.error.main : theme.palette.info.main,
+            trend: (stats?.pendingOrders || 0) > 10 ? { value: 5, isUp: true } : { value: 2, isUp: false },
+            accent: (stats?.pendingOrders || 0) > 10 ? theme.palette.error.main : theme.palette.info.main,
+            alert: (stats?.pendingOrders || 0) > 10
         }
     ];
 
@@ -635,10 +636,10 @@ const Dashboard = () => {
                                             label={`${formatPercentage(profit?.profitMargin)}% margin`}
                                             size="small"
                                             sx={{
-                                                bgcolor: profit?.profitMargin > 20
+                                                bgcolor: (profit?.profitMargin || 0) > 20
                                                     ? alpha(theme.palette.success.main, 0.1)
                                                     : alpha(theme.palette.primary.main, 0.1),
-                                                color: profit?.profitMargin > 20
+                                                color: (profit?.profitMargin || 0) > 20
                                                     ? theme.palette.success.main
                                                     : theme.palette.primary.main,
                                                 fontWeight: 600
@@ -653,12 +654,12 @@ const Dashboard = () => {
                                             Profit Target Progress
                                         </Typography>
                                         <Typography variant="body2" fontWeight="bold">
-                                            {Math.round((profit?.profit / (profit?.totalRevenue || 1)) * 100)}%
+                                            {Math.round(((profit?.profit || 0) / (profit?.totalRevenue || 1)) * 100)}%
                                         </Typography>
                                     </Box>
                                     <LinearProgress
                                         variant="determinate"
-                                        value={Math.min((profit?.profit / (profit?.totalRevenue || 1)) * 100, 100)}
+                                        value={Math.min(((profit?.profit || 0) / (profit?.totalRevenue || 1)) * 100, 100)}
                                         sx={{
                                             height: 8,
                                             borderRadius: 4,

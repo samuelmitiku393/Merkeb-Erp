@@ -55,24 +55,34 @@ import {
     MoreVert as MoreVertIcon
 } from "@mui/icons-material";
 import API from "../api/axios";
+import type { Product, LowStockItem, RestockSuggestion, ProductSize } from "../types";
+import type { ChipProps } from "@mui/material";
+
+interface ProductFormData {
+    name: string;
+    team: string;
+    price: string;
+    costPrice: string;
+    sizes: ProductSize[];
+}
 
 const Inventory = () => {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const isTablet = useMediaQuery(theme.breakpoints.down('md'));
 
-    const [products, setProducts] = useState([]);
-    const [lowStockItems, setLowStockItems] = useState([]);
-    const [restockSuggestions, setRestockSuggestions] = useState([]);
+    const [products, setProducts] = useState<Product[]>([]);
+    const [lowStockItems, setLowStockItems] = useState<LowStockItem[]>([]);
+    const [restockSuggestions, setRestockSuggestions] = useState<RestockSuggestion[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
     const [tabValue, setTabValue] = useState(0);
     const [openDialog, setOpenDialog] = useState(false);
-    const [editingProduct, setEditingProduct] = useState(null);
+    const [editingProduct, setEditingProduct] = useState<Product | null>(null);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-    const [selectedProduct, setSelectedProduct] = useState(null);
-    const [formData, setFormData] = useState({
+    const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
+    const [formData, setFormData] = useState<ProductFormData>({
         name: "",
         team: "",
         price: "",
@@ -118,17 +128,17 @@ const Inventory = () => {
         }
     };
 
-    const handleOpenDialog = (product = null) => {
+    const handleOpenDialog = (product: Product | null = null) => {
         if (product) {
             setEditingProduct(product);
             setFormData({
                 name: product.name,
                 team: product.team || "",
-                price: product.price || "",
-                costPrice: product.costPrice || "",
+                price: product.price?.toString() || "",
+                costPrice: product.costPrice?.toString() || "",
                 sizes: product.sizes.map(s => ({
                     size: s.size,
-                    stock: parseInt(s.stock) || 0
+                    stock: Number(s.stock) || 0
                 }))
             });
         } else {
@@ -151,14 +161,14 @@ const Inventory = () => {
         setError("");
     };
 
-    const handleFormChange = (e) => {
+    const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFormData({
             ...formData,
             [e.target.name]: e.target.value
         });
     };
 
-    const handleSizeChange = (index, field, value) => {
+    const handleSizeChange = (index: number, field: keyof ProductSize, value: string) => {
         const newSizes = [...formData.sizes];
         if (field === "stock") {
             newSizes[index][field] = parseInt(value) || 0;
@@ -175,7 +185,7 @@ const Inventory = () => {
         });
     };
 
-    const removeSize = (index) => {
+    const removeSize = (index: number) => {
         const newSizes = formData.sizes.filter((_, i) => i !== index);
         setFormData({ ...formData, sizes: newSizes });
     };
@@ -218,7 +228,7 @@ const Inventory = () => {
                 costPrice: parseFloat(formData.costPrice),
                 sizes: formData.sizes.map(s => ({
                     size: s.size.trim(),
-                    stock: parseInt(s.stock) || 0
+                    stock: Number(s.stock) || 0
                 }))
             };
 
@@ -236,14 +246,14 @@ const Inventory = () => {
             fetchRestockSuggestions();
 
             setTimeout(() => setSuccess(""), 3000);
-        } catch (error) {
+        } catch (error: any) {
             setError(error.response?.data?.message || "Failed to save product");
         } finally {
             setLoading(false);
         }
     };
 
-    const handleDelete = async (id) => {
+    const handleDelete = async (id: string) => {
         if (!window.confirm("Are you sure you want to delete this product? This action cannot be undone.")) return;
 
         try {
@@ -262,8 +272,8 @@ const Inventory = () => {
         }
     };
 
-    const handleUpdateStock = async (productId, size, currentStock) => {
-        const newStock = prompt(`Update stock for size ${size}:`, currentStock);
+    const handleUpdateStock = async (productId: string, size: string, currentStock: number) => {
+        const newStock = prompt(`Update stock for size ${size}:`, currentStock.toString());
         if (newStock === null || newStock === "") return;
 
         const stockValue = parseInt(newStock);
@@ -289,18 +299,18 @@ const Inventory = () => {
         }
     };
 
-    const getStockStatus = (stock) => {
+    const getStockStatus = (stock: number): { label: string; color: ChipProps['color'] } => {
         if (stock === 0) return { label: "Out of Stock", color: "error" };
         if (stock <= 3) return { label: "Low Stock", color: "warning" };
         return { label: "In Stock", color: "success" };
     };
 
-    const getTotalStock = (product) => {
+    const getTotalStock = (product: Product): number => {
         return product.sizes.reduce((total, size) => total + size.stock, 0);
     };
 
     // Mobile Product Card Component
-    const MobileProductCard = ({ product }) => (
+    const MobileProductCard = ({ product }: { product: Product }) => (
         <Card sx={{ mb: 2, position: 'relative' }}>
             <CardContent>
                 <Box display="flex" justifyContent="space-between" alignItems="flex-start">
@@ -405,7 +415,7 @@ const Inventory = () => {
     );
 
     // Mobile Low Stock Card Component
-    const MobileLowStockCard = ({ item }) => {
+    const MobileLowStockCard = ({ item }: { item: LowStockItem }) => {
         const status = getStockStatus(item.stock);
         return (
             <Card sx={{ mb: 2 }}>
@@ -448,7 +458,7 @@ const Inventory = () => {
     };
 
     // Mobile Restock Suggestion Card
-    const MobileRestockCard = ({ suggestion }) => (
+    const MobileRestockCard = ({ suggestion }: { suggestion: RestockSuggestion }) => (
         <Card sx={{ mb: 2 }}>
             <CardContent>
                 <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
@@ -548,7 +558,6 @@ const Inventory = () => {
                                 Add Product
                             </Button>
                             <IconButton
-                                variant="outlined"
                                 onClick={() => {
                                     fetchProducts();
                                     fetchLowStockItems();

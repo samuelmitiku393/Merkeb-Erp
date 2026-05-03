@@ -82,6 +82,36 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import API from "../api/axios";
 import { format } from "date-fns";
+import type { AuditLog, AuditFilters, AuditFilterOptions, AuditStats, SnackbarState } from "../types";
+import type { ChipProps } from "@mui/material";
+
+interface ProfileData {
+    username: string;
+    email: string;
+    phone: string;
+    location: string;
+    bio: string;
+    avatar: string;
+}
+
+interface PasswordData {
+    currentPassword: string;
+    newPassword: string;
+    confirmPassword: string;
+}
+
+interface UserSettings {
+    emailNotifications: boolean;
+    orderUpdates: boolean;
+    twoFactorAuth: boolean;
+}
+
+interface ReportPreview {
+    url: string;
+    type: string;
+    month: number | null;
+    year: number;
+}
 
 const Profile = () => {
     const theme = useTheme();
@@ -94,32 +124,32 @@ const Profile = () => {
     // Profile states
     const [editDialogOpen, setEditDialogOpen] = useState(false);
     const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
-    const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+    const [snackbar, setSnackbar] = useState<SnackbarState>({ open: false, message: '', severity: 'success' });
     const [loading, setLoading] = useState(false);
     const [showCurrentPassword, setShowCurrentPassword] = useState(false);
     const [showNewPassword, setShowNewPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     // Audit trail states
-    const [auditLogs, setAuditLogs] = useState([]);
+    const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
     const [auditLoading, setAuditLoading] = useState(false);
     const [auditPage, setAuditPage] = useState(0);
     const [auditRowsPerPage, setAuditRowsPerPage] = useState(20);
     const [totalAuditLogs, setTotalAuditLogs] = useState(0);
-    const [auditFilters, setAuditFilters] = useState({
+    const [auditFilters, setAuditFilters] = useState<AuditFilters>({
         action: '',
         entity: '',
         search: '',
         startDate: '',
         endDate: ''
     });
-    const [selectedLog, setSelectedLog] = useState(null);
-    const [filterOptions, setFilterOptions] = useState({
+    const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
+    const [filterOptions, setFilterOptions] = useState<AuditFilterOptions>({
         actions: [],
         entities: [],
         users: []
     });
-    const [auditStats, setAuditStats] = useState(null);
+    const [auditStats, setAuditStats] = useState<AuditStats | null>(null);
     const [auditDetailDialogOpen, setAuditDetailDialogOpen] = useState(false);
     const [filtersExpanded, setFiltersExpanded] = useState(false);
     const [activeFiltersCount, setActiveFiltersCount] = useState(0);
@@ -130,10 +160,10 @@ const Profile = () => {
     const [reportYear, setReportYear] = useState(new Date().getFullYear());
     const [reportLoading, setReportLoading] = useState(false);
     const [reportProgress, setReportProgress] = useState(0);
-    const [reportPreview, setReportPreview] = useState(null);
+    const [reportPreview, setReportPreview] = useState<ReportPreview | null>(null);
     const [reportDialogOpen, setReportDialogOpen] = useState(false);
 
-    const [profileData, setProfileData] = useState({
+    const [profileData, setProfileData] = useState<ProfileData>({
         username: user?.username || '',
         email: user?.email || '',
         phone: user?.phone || '',
@@ -142,16 +172,16 @@ const Profile = () => {
         avatar: user?.avatar || ''
     });
 
-    const [passwordData, setPasswordData] = useState({
+    const [passwordData, setPasswordData] = useState<PasswordData>({
         currentPassword: '',
         newPassword: '',
         confirmPassword: ''
     });
 
-    const [errors, setErrors] = useState({});
-    const [passwordErrors, setPasswordErrors] = useState({});
+    const [errors, setErrors] = useState<Record<string, string>>({});
+    const [passwordErrors, setPasswordErrors] = useState<Record<string, string>>({});
 
-    const [settings, setSettings] = useState({
+    const [settings, setSettings] = useState<UserSettings>({
         emailNotifications: true,
         orderUpdates: true,
         twoFactorAuth: false
@@ -190,7 +220,7 @@ const Profile = () => {
         }
     }, [activeTab, auditPage, auditRowsPerPage, auditFilters]);
 
-    const handleTabChange = (event, newValue) => {
+    const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
         setActiveTab(newValue);
     };
 
@@ -212,7 +242,7 @@ const Profile = () => {
         setEditDialogOpen(true);
     };
 
-    const handleProfileChange = (e) => {
+    const handleProfileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
         setProfileData(prev => ({ ...prev, [name]: value }));
         if (errors[name]) {
@@ -221,7 +251,7 @@ const Profile = () => {
     };
 
     const validateProfile = () => {
-        const newErrors = {};
+        const newErrors: Record<string, string> = {};
         if (!profileData.username) newErrors.username = 'Username is required';
         if (profileData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profileData.email)) {
             newErrors.email = 'Invalid email format';
@@ -239,7 +269,7 @@ const Profile = () => {
             localStorage.setItem('user', JSON.stringify({ ...user, ...profileData }));
             setSnackbar({ open: true, message: 'Profile updated successfully', severity: 'success' });
             setEditDialogOpen(false);
-        } catch (error) {
+        } catch (error: any) {
             setSnackbar({
                 open: true,
                 message: error.response?.data?.message || 'Update failed',
@@ -250,7 +280,7 @@ const Profile = () => {
         }
     };
 
-    const handlePasswordChange = (e) => {
+    const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
         setPasswordData(prev => ({ ...prev, [name]: value }));
         if (passwordErrors[name]) {
@@ -259,7 +289,7 @@ const Profile = () => {
     };
 
     const validatePassword = () => {
-        const newErrors = {};
+        const newErrors: Record<string, string> = {};
         if (!passwordData.currentPassword) newErrors.currentPassword = 'Required';
         if (!passwordData.newPassword) newErrors.newPassword = 'Required';
         else if (passwordData.newPassword.length < 6) newErrors.newPassword = 'Min 6 characters';
@@ -282,7 +312,7 @@ const Profile = () => {
             setSnackbar({ open: true, message: 'Password changed successfully', severity: 'success' });
             setPasswordDialogOpen(false);
             setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
-        } catch (error) {
+        } catch (error: any) {
             setSnackbar({
                 open: true,
                 message: error.response?.data?.message || 'Change failed',
@@ -293,7 +323,7 @@ const Profile = () => {
         }
     };
 
-    const handleSettingChange = (setting) => {
+    const handleSettingChange = (setting: keyof UserSettings) => {
         const newSettings = { ...settings, [setting]: !settings[setting] };
         setSettings(newSettings);
         localStorage.setItem('userSettings', JSON.stringify(newSettings));
@@ -312,8 +342,8 @@ const Profile = () => {
         });
     };
 
-    const handleAvatarUpload = async (event) => {
-        const file = event.target.files[0];
+    const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
         if (!file) return;
 
         setLoading(true);
@@ -373,16 +403,16 @@ const Profile = () => {
         }
     };
 
-    const handleAuditPageChange = (event, newPage) => {
+    const handleAuditPageChange = (_event: React.MouseEvent<HTMLButtonElement> | null, newPage: number) => {
         setAuditPage(newPage);
     };
 
-    const handleAuditRowsPerPageChange = (event) => {
+    const handleAuditRowsPerPageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         setAuditRowsPerPage(parseInt(event.target.value, 10));
         setAuditPage(0);
     };
 
-    const handleAuditFilterChange = (field, value) => {
+    const handleAuditFilterChange = (field: keyof AuditFilters, value: string) => {
         setAuditFilters(prev => ({ ...prev, [field]: value }));
         setAuditPage(0);
     };
@@ -397,7 +427,7 @@ const Profile = () => {
         });
     };
 
-    const viewAuditDetails = (log) => {
+    const viewAuditDetails = (log: AuditLog) => {
         setSelectedLog(log);
         setAuditDetailDialogOpen(true);
     };
@@ -411,8 +441,8 @@ const Profile = () => {
         setFiltersExpanded(!filtersExpanded);
     };
 
-    const getActionColor = (action) => {
-        const colors = {
+    const getActionColor = (action: string): ChipProps['color'] => {
+        const colors: Record<string, ChipProps['color']> = {
             CREATE: 'success',
             UPDATE: 'info',
             DELETE: 'error',
@@ -426,7 +456,7 @@ const Profile = () => {
         return colors[action] || 'default';
     };
 
-    const formatDate = (date) => {
+    const formatDate = (date: string): string => {
         try {
             return format(new Date(date), 'MMM dd, yyyy HH:mm:ss');
         } catch {
@@ -1331,7 +1361,7 @@ const Profile = () => {
                                                     <InputLabel>Month</InputLabel>
                                                     <Select
                                                         value={reportMonth}
-                                                        onChange={(e) => setReportMonth(e.target.value)}
+                                                        onChange={(e) => setReportMonth(Number(e.target.value))}
                                                         label="Month"
                                                     >
                                                         {months.map((monthName, index) => (
@@ -1349,7 +1379,7 @@ const Profile = () => {
                                                 <InputLabel>Year</InputLabel>
                                                 <Select
                                                     value={reportYear}
-                                                    onChange={(e) => setReportYear(e.target.value)}
+                                                    onChange={(e) => setReportYear(Number(e.target.value))}
                                                     label="Year"
                                                 >
                                                     {years.map((yr) => (

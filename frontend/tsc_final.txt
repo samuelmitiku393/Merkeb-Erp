@@ -1,0 +1,79 @@
+src/components/ReportGenerator.tsx(671,66): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type 'Palette'.
+  No index signature with a parameter of type 'string' was found on type 'Palette'.
+src/components/ReportGenerator.tsx(680,52): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type 'Palette'.
+  No index signature with a parameter of type 'string' was found on type 'Palette'.
+src/components/ReportGenerator.tsx(719,66): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type 'Palette'.
+  No index signature with a parameter of type 'string' was found on type 'Palette'.
+src/components/ReportGenerator.tsx(728,52): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type 'Palette'.
+  No index signature with a parameter of type 'string' was found on type 'Palette'.
+src/main.tsx(3,8): error TS2882: Cannot find module or type declarations for side-effect import of './index.css'.
+src/pages/Dashboard.tsx(173,20): error TS18048: 'stats.pendingOrders' is possibly 'undefined'.
+src/pages/Dashboard.tsx(174,20): error TS18048: 'stats.pendingOrders' is possibly 'undefined'.
+src/pages/Dashboard.tsx(175,21): error TS18048: 'stats.pendingOrders' is possibly 'undefined'.
+src/pages/Dashboard.tsx(176,20): error TS18048: 'stats.pendingOrders' is possibly 'undefined'.
+src/pages/Dashboard.tsx(639,58): error TS18048: 'profit.profitMargin' is possibly 'undefined'.
+src/pages/Dashboard.tsx(642,56): error TS18048: 'profit.profitMargin' is possibly 'undefined'.
+src/pages/Dashboard.tsx(657,58): error TS18048: 'profit.profit' is possibly 'undefined'.
+src/pages/Dashboard.tsx(662,58): error TS18048: 'profit.profit' is possibly 'undefined'.
+src/pages/Inventory.tsx(137,17): error TS2322: Type 'string | number' is not assignable to type 'string'.
+  Type 'number' is not assignable to type 'string'.
+src/pages/Inventory.tsx(138,17): error TS2322: Type 'string | number' is not assignable to type 'string'.
+  Type 'number' is not assignable to type 'string'.
+src/pages/Inventory.tsx(141,37): error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.
+src/pages/Inventory.tsx(231,37): error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.
+src/pages/Inventory.tsx(250,22): error TS18046: 'error' is of type 'unknown'.
+src/pages/Inventory.tsx(276,67): error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.
+src/pages/Inventory.tsx(560,30): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(props: { href: string; } & IconButtonOwnProps & Omit<ButtonBaseOwnProps, "classes"> & CommonProps & Omit<Omit<DetailedHTMLProps<AnchorHTMLAttributes<HTMLAnchorElement>, HTMLAnchorElement>, "ref"> & { ...; }, "children" | ... 19 more ... | "edge">): Element', gave the following error.
+    Type '{ children: Element; variant: string; onClick: () => void; color: "primary"; }' is not assignable to type 'IntrinsicAttributes & { href: string; } & IconButtonOwnProps & Omit<ButtonBaseOwnProps, "classes"> & CommonProps & Omit<...>'.
+      Property 'variant' does not exist on type 'IntrinsicAttributes & { href: string; } & IconButtonOwnProps & Omit<ButtonBaseOwnProps, "classes"> & CommonProps & Omit<...>'.
+  Overload 2 of 3, '(props: { component: ElementType<any, keyof IntrinsicElements>; } & IconButtonOwnProps & Omit<ButtonBaseOwnProps, "classes"> & CommonProps & Omit<...>): Element | null', gave the following error.
+    Property 'component' is missing in type '{ children: Element; variant: string; onClick: () => void; color: "primary"; }' but required in type '{ component: ElementType<any, keyof IntrinsicElements>; }'.
+  Overload 3 of 3, '(props: DefaultComponentProps<ExtendButtonBaseTypeMap<IconButtonTypeMap<{}, "button">>>): Element | null', gave the following error.
+    Type '{ children: Element; variant: string; onClick: () => void; color: "primary"; }' is not assignable to type 'IntrinsicAttributes & IconButtonOwnProps & Omit<ButtonBaseOwnProps, "classes"> & CommonProps & Omit<...>'.
+      Property 'variant' does not exist on type 'IntrinsicAttributes & IconButtonOwnProps & Omit<ButtonBaseOwnProps, "classes"> & CommonProps & Omit<...>'.
+src/pages/OrdersPage.tsx(142,32): error TS2339: Property 'name' does not exist on type 'string | OrderItemProduct'.
+  Property 'name' does not exist on type 'string'.
+src/pages/OrdersPage.tsx(150,33): error TS7006: Parameter 'id' implicitly has an 'any' type.
+src/pages/OrdersPage.tsx(150,37): error TS7006: Parameter 'status' implicitly has an 'any' type.
+src/pages/OrdersPage.tsx(161,32): error TS7006: Parameter 'id' implicitly has an 'any' type.
+src/pages/OrdersPage.tsx(161,36): error TS7006: Parameter 'updatedData' implicitly has an 'any' type.
+src/pages/OrdersPage.tsx(170,26): error TS18046: 'error' is of type 'unknown'.
+src/pages/OrdersPage.tsx(174,32): error TS7006: Parameter 'id' implicitly has an 'any' type.
+src/pages/OrdersPage.tsx(208,31): error TS7006: Parameter 'order' implicitly has an 'any' type.
+src/pages/OrdersPage.tsx(216,37): error TS7006: Parameter 'item' implicitly has an 'any' type.
+src/pages/OrdersPage.tsx(255,21): error TS18047: 'selectedOrder' is possibly 'null'.
+src/pages/OrdersPage.tsx(330,69): error TS2345: Argument of type 'string' is not assignable to parameter of type 'OrderStatus'.
+src/pages/OrdersPage.tsx(330,85): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type 'Record<OrderStatus, "warning" | "info" | "success" | "primary">'.
+  No index signature with a parameter of type 'string' was found on type 'Record<OrderStatus, "warning" | "info" | "success" | "primary">'.
+src/pages/OrdersPage.tsx(420,81): error TS2339: Property 'name' does not exist on type 'string | OrderItemProduct'.
+  Property 'name' does not exist on type 'string'.
+src/pages/OrdersPage.tsx(452,76): error TS2531: Object is possibly 'null'.
+src/pages/OrdersPage.tsx(456,64): error TS2531: Object is possibly 'null'.
+src/pages/OrdersPage.tsx(458,68): error TS2531: Object is possibly 'null'.
+src/pages/OrdersPage.tsx(467,71): error TS2531: Object is possibly 'null'.
+src/pages/OrdersPage.tsx(679,72): error TS2339: Property 'name' does not exist on type 'string | OrderItemProduct'.
+  Property 'name' does not exist on type 'string'.
+src/pages/OrdersPage.tsx(756,52): error TS2531: Object is possibly 'null'.
+src/pages/OrdersPage.tsx(758,81): error TS2531: Object is possibly 'null'.
+src/pages/OrdersPage.tsx(761,56): error TS2531: Object is possibly 'null'.
+src/pages/OrdersPage.tsx(763,54): error TS2531: Object is possibly 'null'.
+src/pages/Profile.tsx(255,46): error TS2339: Property 'username' does not exist on type '{}'.
+src/pages/Profile.tsx(257,23): error TS2339: Property 'email' does not exist on type '{}'.
+src/pages/Profile.tsx(275,26): error TS18046: 'error' is of type 'unknown'.
+src/pages/Profile.tsx(293,54): error TS2339: Property 'currentPassword' does not exist on type '{}'.
+src/pages/Profile.tsx(294,50): error TS2339: Property 'newPassword' does not exist on type '{}'.
+src/pages/Profile.tsx(295,65): error TS2339: Property 'newPassword' does not exist on type '{}'.
+src/pages/Profile.tsx(297,23): error TS2339: Property 'confirmPassword' does not exist on type '{}'.
+src/pages/Profile.tsx(318,26): error TS18046: 'error' is of type 'unknown'.
+src/pages/Profile.tsx(346,22): error TS18047: 'event.target.files' is possibly 'null'.
+src/pages/Profile.tsx(456,16): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ CREATE: string; UPDATE: string; DELETE: string; LOGIN: string; LOGOUT: string; PASSWORD_CHANGE: string; PROFILE_UPDATE: string; SETTINGS_CHANGE: string; LOGIN_FAILED: string; }'.
+  No index signature with a parameter of type 'string' was found on type '{ CREATE: string; UPDATE: string; DELETE: string; LOGIN: string; LOGOUT: string; PASSWORD_CHANGE: string; PROFILE_UPDATE: string; SETTINGS_CHANGE: string; LOGIN_FAILED: string; }'.
+src/pages/Profile.tsx(1364,89): error TS2345: Argument of type 'string | number' is not assignable to parameter of type 'SetStateAction<number>'.
+  Type 'string' is not assignable to type 'SetStateAction<number>'.
+src/pages/Profile.tsx(1382,84): error TS2345: Argument of type 'string | number' is not assignable to parameter of type 'SetStateAction<number>'.
+  Type 'string' is not assignable to type 'SetStateAction<number>'.
+src/pages/QuickOrder.tsx(214,5): error TS2322: Type 'string | number | boolean | Product | Product[] | null' is not assignable to type 'never'.
+  Type 'null' is not assignable to type 'never'.
+src/pages/QuickOrder.tsx(233,18): error TS18047: 'item.selectedProduct' is possibly 'null'.
+src/pages/QuickOrder.tsx(235,28): error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.

@@ -1,5 +1,5 @@
-// src/api/axios.js
-import axios from 'axios';
+// src/api/axios.ts
+import axios, { type InternalAxiosRequestConfig, type AxiosResponse, type AxiosError } from 'axios';
 
 const API = axios.create({
   baseURL: 'https://merkeb-erp.onrender.com/api',
@@ -10,22 +10,22 @@ const API = axios.create({
 
 // Add request interceptor to include auth token
 API.interceptors.request.use(
-  (config) => {
+  (config: InternalAxiosRequestConfig): InternalAxiosRequestConfig => {
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
-  (error) => {
+  (error: AxiosError) => {
     return Promise.reject(error);
   }
 );
 
 // Add response interceptor for error handling
 API.interceptors.response.use(
-  (response) => response,
-  (error) => {
+  (response: AxiosResponse): AxiosResponse => response,
+  (error: AxiosError) => {
     if (error.response?.status === 401) {
       // Handle unauthorized access
       localStorage.removeItem('token');

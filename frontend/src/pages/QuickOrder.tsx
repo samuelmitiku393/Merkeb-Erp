@@ -42,6 +42,23 @@ import {
   LocationOn as LocationIcon
 } from "@mui/icons-material";
 import API from "../api/axios";
+import type { Customer, Product, Order } from "../types";
+
+interface OrderItemState {
+  productQuery: string;
+  productResults: Product[];
+  selectedProduct: Product | null;
+  size: string;
+  quantity: number;
+  loading: boolean;
+}
+
+interface NewCustomerForm {
+  name: string;
+  phone: string;
+  address: string;
+  instagram: string;
+}
 
 const QuickOrder = () => {
   const theme = useTheme();
@@ -49,28 +66,28 @@ const QuickOrder = () => {
 
   // Customer State
   const [customerQuery, setCustomerQuery] = useState("");
-  const [customerResults, setCustomerResults] = useState([]);
-  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [customerResults, setCustomerResults] = useState<Customer[]>([]);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [customerLoading, setCustomerLoading] = useState(false);
   const [createCustomerOpen, setCreateCustomerOpen] = useState(false);
-  const [newCustomer, setNewCustomer] = useState({ 
-    name: "", 
-    phone: "", 
-    address: "", 
-    instagram: "" 
+  const [newCustomer, setNewCustomer] = useState<NewCustomerForm>({
+    name: "",
+    phone: "",
+    address: "",
+    instagram: ""
   });
 
   // Items State
-  const [items, setItems] = useState([
+  const [items, setItems] = useState<OrderItemState[]>([
     { productQuery: "", productResults: [], selectedProduct: null, size: "", quantity: 1, loading: false }
   ]);
   const [orderTotal, setOrderTotal] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [successDialog, setSuccessDialog] = useState(false);
-  const [createdOrder, setCreatedOrder] = useState(null);
+  const [createdOrder, setCreatedOrder] = useState<Order | null>(null);
 
-  const searchTimeout = useRef(null);
-  const productInputRefs = useRef([]);
+  const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const productInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   // Calculate total
   useEffect(() => {
@@ -84,7 +101,7 @@ const QuickOrder = () => {
   }, [items]);
 
   // Customer Search
-  const handleCustomerSearch = (query) => {
+  const handleCustomerSearch = (query: string) => {
     setCustomerQuery(query);
 
     if (searchTimeout.current) clearTimeout(searchTimeout.current);
@@ -107,7 +124,7 @@ const QuickOrder = () => {
     }, 300);
   };
 
-  const selectCustomer = (customer) => {
+  const selectCustomer = (customer: Customer) => {
     setSelectedCustomer(customer);
     setCustomerQuery("");
     setCustomerResults([]);
@@ -134,7 +151,7 @@ const QuickOrder = () => {
   };
 
   // Product Search
-  const handleProductSearch = (index, query) => {
+  const handleProductSearch = (index: number, query: string) => {
     const newItems = [...items];
     newItems[index].productQuery = query;
     setItems(newItems);
@@ -167,7 +184,7 @@ const QuickOrder = () => {
     }, 300);
   };
 
-  const selectProduct = (index, product) => {
+  const selectProduct = (index: number, product: Product) => {
     const newItems = [...items];
     newItems[index].selectedProduct = product;
     newItems[index].productQuery = "";
@@ -187,14 +204,14 @@ const QuickOrder = () => {
     }, 100);
   };
 
-  const removeItem = (index) => {
+  const removeItem = (index: number) => {
     if (items.length === 1) return;
     setItems(items.filter((_, i) => i !== index));
   };
 
-  const updateItem = (index, field, value) => {
+  const updateItem = (index: number, field: keyof OrderItemState, value: OrderItemState[keyof OrderItemState]) => {
     const newItems = [...items];
-    newItems[index][field] = value;
+    newItems[index] = { ...newItems[index], [field]: value } as any;
     setItems(newItems);
   };
 
@@ -213,9 +230,9 @@ const QuickOrder = () => {
     setSubmitting(true);
     try {
       const orderItems = items.map((item) => ({
-        product: item.selectedProduct._id,
+        product: item.selectedProduct!._id,
         size: item.size,
-        quantity: parseInt(item.quantity)
+        quantity: Number(item.quantity)
       }));
 
       const res = await API.post("/orders", {

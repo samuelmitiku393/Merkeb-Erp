@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
+import type { Order, OrderStatus, SnackbarState } from "../types";
 import {
     Box,
     Typography,
@@ -54,22 +55,22 @@ import {
 } from "@mui/icons-material";
 import API from "../api/axios";
 
-const statusColors = {
+const statusColors: Record<OrderStatus, 'warning' | 'info' | 'primary' | 'success'> = {
     pending: "warning",
     confirmed: "info",
     shipped: "primary",
     delivered: "success"
 };
 
-const statusIcons = {
+const statusIcons: Record<OrderStatus, React.ReactElement> = {
     pending: <ReceiptIcon />,
     confirmed: <CheckCircleIcon />,
     shipped: <ShippingIcon />,
     delivered: <InventoryIcon />
 };
 
-// Action button configurations for each status
-const statusActions = {
+type StatusAction = { next: OrderStatus; label: string; icon: React.ReactElement; color: 'info' | 'primary' | 'success' };
+const statusActions: Record<OrderStatus, StatusAction | null> = {
     pending: {
         next: "confirmed",
         label: "Confirm",
@@ -95,18 +96,21 @@ const OrdersPage = () => {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
-    const [orders, setOrders] = useState([]);
-    const [tab, setTab] = useState("pending");
+    const [orders, setOrders] = useState<Order[]>([]);
+    const [tab, setTab] = useState<OrderStatus>("pending");
     const [search, setSearch] = useState("");
     const [loading, setLoading] = useState(true);
-    const [selectedOrder, setSelectedOrder] = useState(null);
+    const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
     const [detailsOpen, setDetailsOpen] = useState(false);
     const [editMode, setEditMode] = useState(false);
-    const [editFormData, setEditFormData] = useState({
+    const [editFormData, setEditFormData] = useState<{
+        customer: { name: string; phone: string; address: string };
+        items: Array<{ _id?: string; product: string; productName: string; size: string; quantity: number; price: number }>;
+    }>({
         customer: { name: "", phone: "", address: "" },
         items: []
     });
-    const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
+    const [snackbar, setSnackbar] = useState<SnackbarState>({ open: false, message: "", severity: "success" });
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
     const fetchOrders = async () => {
@@ -135,7 +139,7 @@ const OrdersPage = () => {
                 o.customer?.phone?.includes(search) ||
                 o.customer?.address?.toLowerCase().includes(search.toLowerCase()) ||
                 o.items?.some((i) =>
-                    i.product?.name?.toLowerCase().includes(search.toLowerCase())
+                    (typeof i.product === 'object' && i.product !== null ? i.product.name : '')?.toLowerCase().includes(search.toLowerCase())
                 ) ||
                 o._id?.toLowerCase().includes(search.toLowerCase());
 
@@ -143,7 +147,7 @@ const OrdersPage = () => {
         });
     }, [orders, tab, search]);
 
-    const updateStatus = async (id, status) => {
+    const updateStatus = async (id: string, status: OrderStatus) => {
         try {
             await API.put(`/orders/${id}/status`, { status });
             fetchOrders();
@@ -154,20 +158,20 @@ const OrdersPage = () => {
         }
     };
 
-    const updateOrder = async (id, updatedData) => {
+    const updateOrder = async (id: string, updatedData: any) => {
         try {
             await API.put(`/orders/${id}`, updatedData);
             fetchOrders();
             setEditMode(false);
             setDetailsOpen(false);
             showSnackbar("Order updated successfully", "success");
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error updating order:", error);
             showSnackbar(error.response?.data?.message || "Error updating order", "error");
         }
     };
 
-    const deleteOrder = async (id) => {
+    const deleteOrder = async (id: string) => {
         try {
             await API.delete(`/orders/${id}`);
             fetchOrders();
@@ -180,11 +184,11 @@ const OrdersPage = () => {
         }
     };
 
-    const showSnackbar = (message, severity) => {
+    const showSnackbar = (message: string, severity: SnackbarState['severity']) => {
         setSnackbar({ open: true, message, severity });
     };
 
-    const nextStatus = (status) => {
+    const nextStatus = (status: OrderStatus): OrderStatus | null => {
         switch (status) {
             case "pending":
                 return "confirmed";
@@ -197,11 +201,11 @@ const OrdersPage = () => {
         }
     };
 
-    const getStatusCount = (status) => {
+    const getStatusCount = (status: OrderStatus): number => {
         return orders.filter(o => o.status === status).length;
     };
 
-    const handleOrderClick = (order) => {
+    const handleOrderClick = (order: Order) => {
         setSelectedOrder(order);
         setEditFormData({
             customer: { 
@@ -209,10 +213,10 @@ const OrdersPage = () => {
                 phone: order.customer?.phone || "",
                 address: order.customer?.address || ""
             },
-            items: order.items?.map(item => ({
+            items: order.items?.map((item: any) => ({
                 _id: item._id,
-                product: item.product?._id || item.product,
-                productName: item.product?.name || "",
+                product: typeof item.product === 'object' && item.product !== null ? item.product._id : item.product,
+                productName: typeof item.product === 'object' && item.product !== null ? item.product.name : "",
                 size: item.size,
                 quantity: item.quantity,
                 price: item.price
@@ -222,7 +226,7 @@ const OrdersPage = () => {
         setDetailsOpen(true);
     };
 
-    const handleEditChange = (field, value, itemIndex = null) => {
+    const handleEditChange = (field: string, value: unknown, itemIndex: number | null = null) => {
         if (itemIndex !== null) {
             const newItems = [...editFormData.items];
             newItems[itemIndex] = { ...newItems[itemIndex], [field]: value };
@@ -248,11 +252,13 @@ const OrdersPage = () => {
                 price: item.price
             }))
         };
-        updateOrder(selectedOrder._id, updatedOrder);
+        if (selectedOrder) {
+            updateOrder(selectedOrder._id, updatedOrder);
+        }
     };
 
     // Handle quick action button click
-    const handleQuickAction = (e, order) => {
+    const handleQuickAction = (e: React.MouseEvent<HTMLButtonElement>, order: Order) => {
         e.stopPropagation();
         const action = statusActions[order.status];
         if (action) {
@@ -319,7 +325,7 @@ const OrdersPage = () => {
                         }
                     }}
                 >
-                    {['pending', 'confirmed', 'shipped', 'delivered'].map((status) => (
+                    {(['pending', 'confirmed', 'shipped', 'delivered'] as OrderStatus[]).map((status) => (
                         <Tab
                             key={status}
                             label={
@@ -413,7 +419,7 @@ const OrdersPage = () => {
                                                     </Box>
                                                 )}
                                                 <Typography variant="body2" color="text.primary" sx={{ mb: 0.5 }}>
-                                                    {order.items?.[0]?.product?.name || 'No items'}
+                                                    {(typeof order.items?.[0]?.product === 'object' && order.items?.[0]?.product !== null ? order.items[0].product.name : '') || 'No items'}
                                                     {order.items?.length > 1 && (
                                                         <Typography component="span" color="text.secondary">
                                                             {' '} +{order.items.length - 1} more item{order.items.length - 1 > 1 ? 's' : ''}
@@ -445,13 +451,13 @@ const OrdersPage = () => {
                                         <Box display="flex" alignItems="center" gap={1}>
                                             {/* Quick Action Button */}
                                             {statusActions[order.status] && (
-                                                <Tooltip title={`Mark as ${statusActions[order.status].next}`}>
+                                                <Tooltip title={`Mark as ${statusActions[order.status]?.next}`}>
                                                     <Button
                                                         variant="contained"
                                                         size="small"
-                                                        color={statusActions[order.status].color}
+                                                        color={statusActions[order.status]?.color}
                                                         onClick={(e) => handleQuickAction(e, order)}
-                                                        startIcon={statusActions[order.status].icon}
+                                                        startIcon={statusActions[order.status]?.icon}
                                                         sx={{
                                                             minWidth: isMobile ? 'auto' : 100,
                                                             px: isMobile ? 1 : 2,
@@ -460,7 +466,7 @@ const OrdersPage = () => {
                                                             }
                                                         }}
                                                     >
-                                                        {!isMobile && statusActions[order.status].label}
+                                                        {!isMobile && statusActions[order.status]?.label}
                                                     </Button>
                                                 </Tooltip>
                                             )}
@@ -672,7 +678,7 @@ const OrdersPage = () => {
                                     selectedOrder.items?.map((item, i) => (
                                         <Box key={i} sx={{ mb: 1 }}>
                                             <Typography>
-                                                <strong>{item.product?.name}</strong> - Size: {item.size}
+                                                <strong>{typeof item.product === 'object' && item.product !== null ? item.product.name : ''}</strong> - Size: {item.size}
                                             </Typography>
                                             <Typography variant="body2" color="text.secondary">
                                                 Quantity: {item.quantity} × ₹{item.price?.toLocaleString()}
@@ -718,7 +724,7 @@ const OrdersPage = () => {
                                         <Select
                                             value={selectedOrder.status}
                                             onChange={(e) => {
-                                                updateStatus(selectedOrder._id, e.target.value);
+                                                updateStatus(selectedOrder._id, e.target.value as OrderStatus);
                                                 setDetailsOpen(false);
                                             }}
                                         >
@@ -746,17 +752,19 @@ const OrdersPage = () => {
                                 </>
                             ) : (
                                 <>
-                                    {statusActions[selectedOrder.status] && (
+                                    {selectedOrder && selectedOrder.status && statusActions[selectedOrder.status] && (
                                         <Button
                                             variant="contained"
-                                            color={statusActions[selectedOrder.status].color}
+                                            color={statusActions[selectedOrder.status]?.color}
                                             onClick={() => {
-                                                updateStatus(selectedOrder._id, statusActions[selectedOrder.status].next);
-                                                setDetailsOpen(false);
+                                                if (selectedOrder && selectedOrder.status && statusActions[selectedOrder.status]) {
+                                                    updateStatus(selectedOrder._id, statusActions[selectedOrder.status]!.next);
+                                                    setDetailsOpen(false);
+                                                }
                                             }}
-                                            startIcon={statusActions[selectedOrder.status].icon}
+                                            startIcon={statusActions[selectedOrder.status]?.icon}
                                         >
-                                            Mark as {statusActions[selectedOrder.status].next}
+                                            Mark as {statusActions[selectedOrder.status]?.next}
                                         </Button>
                                     )}
                                     <Button onClick={() => setDetailsOpen(false)}>Close</Button>
@@ -778,7 +786,7 @@ const OrdersPage = () => {
                 <DialogActions>
                     <Button onClick={() => setDeleteConfirmOpen(false)}>Cancel</Button>
                     <Button 
-                        onClick={() => deleteOrder(selectedOrder?._id)} 
+                        onClick={() => deleteOrder(selectedOrder!._id)} 
                         color="error" 
                         variant="contained"
                     >

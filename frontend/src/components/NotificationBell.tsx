@@ -16,17 +16,20 @@ import {
     CheckCircle as CheckCircleIcon
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
+import type { Notification, NotificationType } from "../types";
+
+type ChipColor = 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning';
 
 const NotificationBell = () => {
-    const [anchorEl, setAnchorEl] = useState(null);
-    const [notifications, setNotifications] = useState([
+    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+    const [notifications, setNotifications] = useState<Notification[]>([
         { id: 1, title: "Low Stock Alert", message: "Product A is running low", type: "warning", read: false, time: "5 min ago" },
         { id: 2, title: "Order Received", message: "New order #12345", type: "info", read: false, time: "10 min ago" },
         { id: 3, title: "Payment Received", message: "Payment for order #12344", type: "success", read: true, time: "1 hour ago" },
     ]);
     const navigate = useNavigate();
 
-    const handleClick = (event) => {
+    const handleClick = (event: React.MouseEvent<HTMLElement>) => {
         setAnchorEl(event.currentTarget);
     };
 
@@ -34,7 +37,7 @@ const NotificationBell = () => {
         setAnchorEl(null);
     };
 
-    const markAsRead = (id) => {
+    const markAsRead = (id: number) => {
         setNotifications(notifications.map(n =>
             n.id === id ? { ...n, read: true } : n
         ));
@@ -42,7 +45,7 @@ const NotificationBell = () => {
 
     const unreadCount = notifications.filter(n => !n.read).length;
 
-    const getTypeColor = (type) => {
+    const getTypeColor = (type: NotificationType): ChipColor => {
         switch (type) {
             case 'warning': return 'warning';
             case 'success': return 'success';

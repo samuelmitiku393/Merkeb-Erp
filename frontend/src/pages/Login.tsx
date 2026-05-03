@@ -16,14 +16,18 @@ import {
 import {
   Visibility,
   VisibilityOff,
-  LockOutlined as LockOutlinedIcon,
   AdminPanelSettings as AdminIcon
 } from '@mui/icons-material';
+
+interface FormData {
+  username: string;
+  password: string;
+}
 
 const Login = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     username: '',
     password: ''
   });
@@ -31,7 +35,7 @@ const Login = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleChange = (e) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value
@@ -39,19 +43,19 @@ const Login = () => {
     setError('');
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
     const result = await login(formData.username, formData.password);
-    
+
     if (result.success) {
       navigate('/');
     } else {
-      setError(result.error);
+      setError((result as any).error || 'Login failed');
     }
-    
+
     setLoading(false);
   };
 
@@ -79,7 +83,7 @@ const Login = () => {
           <Avatar sx={{ m: 1, bgcolor: 'primary.main', width: 56, height: 56 }}>
             <AdminIcon sx={{ fontSize: 32 }} />
           </Avatar>
-          
+
           <Typography component="h1" variant="h5" sx={{ mb: 3, fontWeight: 600 }}>
             Merkeb ERP Login
           </Typography>
@@ -104,7 +108,7 @@ const Login = () => {
               onChange={handleChange}
               disabled={loading}
             />
-            
+
             <TextField
               margin="normal"
               required

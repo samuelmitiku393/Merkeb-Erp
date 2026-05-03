@@ -1,4 +1,4 @@
-// components/ReportGenerator.jsx
+// components/ReportGenerator.tsx
 import React, { useState } from "react";
 import {
   Box,
@@ -72,12 +72,12 @@ import API from "../api/axios";
 const ReportGenerator = () => {
   const theme = useTheme();
   const [loading, setLoading] = useState(false);
-  const [reportType, setReportType] = useState("monthly");
-  const [month, setMonth] = useState(new Date().getMonth() + 1);
-  const [year, setYear] = useState(new Date().getFullYear());
+  const [reportType, setReportType] = useState<'monthly' | 'yearly'>('monthly');
+  const [month, setMonth] = useState<number>(new Date().getMonth() + 1);
+  const [year, setYear] = useState<number>(new Date().getFullYear());
   const [progress, setProgress] = useState(0);
   const [summaryOpen, setSummaryOpen] = useState(false);
-  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({ open: false, message: '', severity: 'success' });
   const [activeStep, setActiveStep] = useState(0);
 
   const months = [
@@ -470,7 +470,7 @@ const ReportGenerator = () => {
                         </InputLabel>
                         <Select
                           value={month}
-                          onChange={(e) => setMonth(e.target.value)}
+                          onChange={(e) => setMonth(Number(e.target.value))}
                           label="Select Month"
                           sx={{ borderRadius: 2 }}
                         >
@@ -499,7 +499,7 @@ const ReportGenerator = () => {
                       </InputLabel>
                       <Select
                         value={year}
-                        onChange={(e) => setYear(e.target.value)}
+                        onChange={(e) => setYear(Number(e.target.value))}
                         label="Select Year"
                         sx={{ borderRadius: 2 }}
                       >
@@ -668,7 +668,7 @@ const ReportGenerator = () => {
                                 height: '100%',
                                 '&:hover': {
                                   transform: 'translateY(-4px)',
-                                  boxShadow: `0 8px 24px ${alpha(theme.palette[feature.color].main, 0.15)}`,
+                                  boxShadow: `0 8px 24px ${alpha((theme.palette as any)[feature.color].main, 0.15)}`,
                                   borderColor: `${feature.color}.main`,
                                 }
                               }}
@@ -677,7 +677,7 @@ const ReportGenerator = () => {
                               <CardContent>
                                 <Avatar 
                                   sx={{ 
-                                    bgcolor: alpha(theme.palette[feature.color].main, 0.1),
+                                    bgcolor: alpha((theme.palette as any)[feature.color].main, 0.1),
                                     color: `${feature.color}.main`,
                                     mb: 2,
                                     width: 48,
@@ -716,7 +716,7 @@ const ReportGenerator = () => {
                                 height: '100%',
                                 '&:hover': {
                                   transform: 'translateY(-4px)',
-                                  boxShadow: `0 8px 24px ${alpha(theme.palette[feature.color].main, 0.15)}`,
+                                  boxShadow: `0 8px 24px ${alpha((theme.palette as any)[feature.color].main, 0.15)}`,
                                   borderColor: `${feature.color}.main`,
                                 }
                               }}
@@ -725,7 +725,7 @@ const ReportGenerator = () => {
                               <CardContent>
                                 <Avatar 
                                   sx={{ 
-                                    bgcolor: alpha(theme.palette[feature.color].main, 0.1),
+                                    bgcolor: alpha((theme.palette as any)[feature.color].main, 0.1),
                                     color: `${feature.color}.main`,
                                     mb: 2,
                                     width: 48,

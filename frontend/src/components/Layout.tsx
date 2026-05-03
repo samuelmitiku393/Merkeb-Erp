@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState } from "react";
 import {
     Box,
     BottomNavigation,
@@ -21,28 +21,36 @@ import {
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
-const Layout = ({ children }) => {
+interface LayoutProps {
+    children: React.ReactNode;
+}
+
+interface NavItem {
+    label: string;
+    value: string;
+    icon: React.ReactElement;
+}
+
+const Layout = ({ children }: LayoutProps) => {
     const navigate = useNavigate();
     const location = useLocation();
-    const { user, logout } = useAuth();
+    const { user: _user, logout: _logout } = useAuth();
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
-    const [value, setValue] = useState(location.pathname);
+    const [value, setValue] = useState<string>(location.pathname);
 
     const scrollTrigger = useScrollTrigger({
         disableHysteresis: true,
         threshold: 0,
     });
 
-    const handleChange = (event, newValue) => {
+    const handleChange = (_event: React.SyntheticEvent, newValue: string) => {
         setValue(newValue);
         navigate(newValue);
     };
 
-    // Get current page title for document title or subtitle if needed
-
-    const navItems = [
+    const navItems: NavItem[] = [
         { label: "Dashboard", value: "/", icon: <DashboardIcon /> },
         { label: "Orders", value: "/orders", icon: <OrdersIcon /> },
         { label: "Quick Order", value: "/quick-order", icon: <QuickOrderIcon /> },

@@ -1,9 +1,11 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
+import { type AxiosError } from 'axios';
 import API from '../api/axios';
+import type { User, AuthContextType } from '../types';
 
-const AuthContext = createContext();
+const AuthContext = createContext<AuthContextType | null>(null);
 
-export const useAuth = () => {
+export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
   if (!context) {
     throw new Error('useAuth must be used within an AuthProvider');
@@ -11,20 +13,24 @@ export const useAuth = () => {
   return context;
 };
 
-export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(() => {
+interface AuthProviderProps {
+  children: React.ReactNode;
+}
+
+export const AuthProvider = ({ children }: AuthProviderProps) => {
+  const [user, setUser] = useState<User | null>(() => {
     const savedUser = localStorage.getItem('user');
-    return savedUser ? JSON.parse(savedUser) : null;
+    return savedUser ? (JSON.parse(savedUser) as User) : null;
   });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const verifyToken = async () => {
       const token = localStorage.getItem('token');
-      
+
       if (token) {
         try {
-          const response = await API.get('/auth/verify');
+          const response = await API.get<{ user: User }>('/auth/verify');
           setUser(response.data.user);
           localStorage.setItem('user', JSON.stringify(response.data.user));
         } catch (error) {
@@ -40,24 +46,25 @@ export const AuthProvider = ({ children }) => {
     verifyToken();
   }, []);
 
-  const login = async (username, password) => {
+  const login: AuthContextType['login'] = async (username, password) => {
     try {
-      const response = await API.post('/auth/login', {
+      const response = await API.post<{ token: string; user: User }>('/auth/login', {
         username,
-        password
+        password,
       });
 
-      const { token, user } = response.data;
-      
+      const { token, user: loggedInUser } = response.data;
+
       localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(user));
-      setUser(user);
-      
-      return { success: true, user };
-    } catch (error) {
-      return { 
-        success: false, 
-        error: error.response?.data?.message || 'Login failed' 
+      localStorage.setItem('user', JSON.stringify(loggedInUser));
+      setUser(loggedInUser);
+
+      return { success: true, user: loggedInUser };
+    } catch (err) {
+      const error = err as AxiosError<{ message: string }>;
+      return {
+        success: false,
+        error: error.response?.data?.message ?? 'Login failed',
       };
     }
   };
@@ -68,12 +75,12 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
-  const value = {
+  const value: AuthContextType = {
     user,
     login,
     logout,
     loading,
-    isAuthenticated: !!user
+    isAuthenticated: !!user,
   };
 
   return (

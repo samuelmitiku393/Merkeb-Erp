@@ -4,12 +4,10 @@
     "target": "es2023",
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "module": "esnext",
-    "types": ["vite/client"],
-
-    /* ✅ Critical fixes */
+    /* Strict type checking */
     "skipLibCheck": true,
-    "allowJs": true,
-    "noImplicitAny": false,
+    "allowJs": false,
+    "noImplicitAny": true,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
 
@@ -21,6 +19,5 @@
     "noEmit": true,
     "jsx": "react-jsx"
   },
-  "include": ["src"],
-  "exclude": ["src/components/ReportGenerator.tsx"]
+  "include": ["src"]
 }
