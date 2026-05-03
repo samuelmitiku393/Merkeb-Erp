@@ -1,0 +1,30 @@
+{
+  "timestamp": "2026-05-01T20:39:54.754Z",
+  "message": "getaddrinfo ENOTFOUND ac-acvfmre-shard-00-01.2cpa9c3.mongodb.net",
+  "stack": "MongoNetworkError: getaddrinfo ENOTFOUND ac-acvfmre-shard-00-01.2cpa9c3.mongodb.net\n    at TLSSocket.<anonymous> (D:\\Projects\\Merkeb_erp\\backend\\node_modules\\mongodb\\lib\\cmap\\connect.js:313:44)\n    at Object.onceWrapper (node:events:634:26)\n    at TLSSocket.emit (node:events:519:28)\n    at emitErrorNT (node:internal/streams/destroy:170:8)\n    at emitErrorCloseNT (node:internal/streams/destroy:129:3)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)",
+  "name": "MongoNetworkError",
+  "url": "/api/audit/stats/overview",
+  "method": "GET",
+  "params": {},
+  "query": {},
+  "headers": {
+    "host": "localhost:5000",
+    "connection": "keep-alive",
+    "sec-ch-ua-platform": "\"Android\"",
+    "authorization": "[REDACTED]",
+    "user-agent": "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Mobile Safari/537.36",
+    "accept": "application/json, text/plain, */*",
+    "sec-ch-ua": "\"Google Chrome\";v=\"147\", \"Not.A/Brand\";v=\"8\", \"Chromium\";v=\"147\"",
+    "sec-ch-ua-mobile": "?1",
+    "origin": "http://localhost:5173",
+    "sec-fetch-site": "same-site",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-dest": "empty",
+    "referer": "http://localhost:5173/",
+    "accept-encoding": "gzip, deflate, br, zstd",
+    "accept-language": "en-US,en;q=0.9",
+    "if-none-match": "W/\"106-GOoZJUhyI6OixZ7UvbtqEKuYzYI\""
+  },
+  "ip": "::1"
+}
+---
