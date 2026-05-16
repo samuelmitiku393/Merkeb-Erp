@@ -10,7 +10,8 @@
     "reset-admin": "node scripts/resetAdmin.js",
     "create-users": "node scripts/CreateUsers.js",
     "create-user": "node scripts/createAdminUser.js",
-    "start": "node server.js"
+    "start": "node server.js",
+    "bot": "node scripts/bot.js"
   },
   "keywords": [],
   "author": "",

@@ -10,6 +10,12 @@ export interface User {
   bio?: string;
   avatar?: string;
   role: 'admin' | 'user';
+  // Telegram Mini App profile fields
+  telegramId?: number;
+  telegramUsername?: string;
+  firstName?: string;
+  lastName?: string;
+  photoUrl?: string;
 }
 
 export interface AuthContextType {
@@ -17,6 +23,9 @@ export interface AuthContextType {
   login: (
     username: string,
     password: string
+  ) => Promise<{ success: true; user: User } | { success: false; error: string }>;
+  telegramLogin: (
+    initData: string
   ) => Promise<{ success: true; user: User } | { success: false; error: string }>;
   logout: () => void;
   loading: boolean;

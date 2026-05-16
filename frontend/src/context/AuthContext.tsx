@@ -69,6 +69,28 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
+  const telegramLogin: AuthContextType['telegramLogin'] = async (initData) => {
+    try {
+      const response = await API.post<{ token: string; user: User }>('/auth/telegram-login', {
+        initData,
+      });
+
+      const { token, user: loggedInUser } = response.data;
+
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(loggedInUser));
+      setUser(loggedInUser);
+
+      return { success: true, user: loggedInUser };
+    } catch (err) {
+      const error = err as AxiosError<{ message: string }>;
+      return {
+        success: false,
+        error: error.response?.data?.message ?? 'Telegram login failed',
+      };
+    }
+  };
+
   const logout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
@@ -78,6 +100,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const value: AuthContextType = {
     user,
     login,
+    telegramLogin,
     logout,
     loading,
     isAuthenticated: !!user,

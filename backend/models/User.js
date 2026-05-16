@@ -11,13 +11,40 @@ const userSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: true,
-    minlength: 6
+    required: false,
+    minlength: 6,
+    default: null
   },
   role: {
     type: String,
     enum: ["admin", "user"],
     default: "user"
+  },
+  // Telegram-specific fields
+  telegramId: {
+    type: Number,
+    unique: true,
+    sparse: true,  // allows multiple null values
+    default: null
+  },
+  telegramUsername: {
+    type: String,
+    trim: true,
+    default: null
+  },
+  firstName: {
+    type: String,
+    trim: true,
+    default: null
+  },
+  lastName: {
+    type: String,
+    trim: true,
+    default: null
+  },
+  photoUrl: {
+    type: String,
+    default: null
   },
   createdAt: {
     type: Date,

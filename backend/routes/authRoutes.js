@@ -1,12 +1,182 @@
 import express from "express";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import User from "../models/User.js";
 import AuditLog from "../models/AuditLog.js";
 import { authenticateToken, authorizeRoles } from "../middleware/auth.js";
 import { auditLog } from "../middleware/auditMiddleware.js";
 
 const router = express.Router();
+
+// ─── Telegram Mini App Login ────────────────────────────────────────────────
+// Validates Telegram initData using HMAC-SHA256 per Telegram's spec:
+// https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app
+router.post("/telegram-login", async (req, res, next) => {
+  try {
+    const { initData } = req.body;
+
+    if (!initData) {
+      return res.status(400).json({ message: "initData is required" });
+    }
+
+    if (!process.env.TELEGRAM_BOT_TOKEN) {
+      return res.status(503).json({ message: "Telegram authentication is not configured on this server" });
+    }
+
+    // 1. Parse the initData query string
+    const params = new URLSearchParams(initData);
+    const hash = params.get("hash");
+    if (!hash) {
+      return res.status(400).json({ message: "Invalid initData: missing hash" });
+    }
+
+    // 2. Build the data-check-string (all fields except hash, sorted alphabetically)
+    params.delete("hash");
+    const dataCheckString = [...params.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, val]) => `${key}=${val}`)
+      .join("\n");
+
+    // 3. Compute the HMAC-SHA256 signature
+    const secretKey = crypto
+      .createHmac("sha256", "WebAppData")
+      .update(process.env.TELEGRAM_BOT_TOKEN)
+      .digest();
+
+    const computedHash = crypto
+      .createHmac("sha256", secretKey)
+      .update(dataCheckString)
+      .digest("hex");
+
+    if (computedHash !== hash) {
+      return res.status(401).json({ message: "Invalid Telegram initData signature" });
+    }
+
+    // 4. Check auth_date to prevent replay attacks (allow up to 24h)
+    const authDate = parseInt(params.get("auth_date") || "0", 10);
+    const now = Math.floor(Date.now() / 1000);
+    if (now - authDate > 86400) {
+      return res.status(401).json({ message: "initData has expired" });
+    }
+
+    // 5. Parse the user object from initData
+    const tgUserRaw = params.get("user");
+    if (!tgUserRaw) {
+      return res.status(400).json({ message: "No user data in initData" });
+    }
+
+    let tgUser;
+    try {
+      tgUser = JSON.parse(tgUserRaw);
+    } catch {
+      return res.status(400).json({ message: "Malformed user data in initData" });
+    }
+
+    const { id: telegramId, username: telegramUsername, first_name, last_name, photo_url } = tgUser;
+
+    if (!telegramId) {
+      return res.status(400).json({ message: "Missing Telegram user ID" });
+    }
+
+    // 6. Find or create user
+    let user = await User.findOne({ telegramId });
+
+    if (!user) {
+      // Auto-register new Telegram user
+      const generatedUsername = telegramUsername
+        ? `tg_${telegramUsername}`.toLowerCase()
+        : `tg_${telegramId}`;
+
+      // Ensure username is unique
+      let finalUsername = generatedUsername;
+      let counter = 1;
+      while (await User.findOne({ username: finalUsername })) {
+        finalUsername = `${generatedUsername}_${counter++}`;
+      }
+
+      user = new User({
+        username: finalUsername,
+        password: null,
+        role: "user",
+        telegramId,
+        telegramUsername: telegramUsername || null,
+        firstName: first_name || null,
+        lastName: last_name || null,
+        photoUrl: photo_url || null,
+      });
+
+      await user.save();
+
+      // Audit log new registration
+      try {
+        await AuditLog.create({
+          action: "REGISTER_TELEGRAM",
+          entity: "AUTH",
+          performedBy: user._id,
+          performedByUsername: user.username,
+          performedByRole: user.role,
+          description: `Telegram user ${finalUsername} (ID: ${telegramId}) registered via Mini App`,
+          ipAddress: req.ip || req.connection?.remoteAddress,
+          userAgent: req.get("user-agent"),
+          timestamp: new Date(),
+        });
+      } catch (auditError) {
+        console.error("Failed to create audit log:", auditError.message);
+      }
+    } else {
+      // Update Telegram profile fields in case they changed
+      user.telegramUsername = telegramUsername || user.telegramUsername;
+      user.firstName = first_name || user.firstName;
+      user.lastName = last_name || user.lastName;
+      user.photoUrl = photo_url || user.photoUrl;
+      await user.save();
+    }
+
+    // 7. Issue JWT
+    const token = jwt.sign(
+      { id: user._id, username: user.username, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN || "24h" }
+    );
+
+    // Audit successful login
+    try {
+      await AuditLog.create({
+        action: "LOGIN_TELEGRAM",
+        entity: "AUTH",
+        performedBy: user._id,
+        performedByUsername: user.username,
+        performedByRole: user.role,
+        description: `Telegram user ${user.username} logged in via Mini App`,
+        ipAddress: req.ip || req.connection?.remoteAddress,
+        userAgent: req.get("user-agent"),
+        timestamp: new Date(),
+      });
+    } catch (auditError) {
+      console.error("Failed to create audit log:", auditError.message);
+    }
+
+    return res.json({
+      success: true,
+      message: "Telegram login successful",
+      token,
+      user: {
+        id: user._id,
+        username: user.username,
+        role: user.role,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        telegramUsername: user.telegramUsername,
+        photoUrl: user.photoUrl,
+      },
+    });
+
+  } catch (error) {
+    next(error);
+  }
+});
+
 
 // Login route - no authentication needed, but we log manually
 router.post("/login", async (req, res, next) => {
@@ -41,6 +211,13 @@ router.post("/login", async (req, res, next) => {
       
       return res.status(401).json({
         message: "Invalid credentials"
+      });
+    }
+
+    // Guard: Telegram-only accounts have no password set
+    if (!user.password) {
+      return res.status(401).json({
+        message: "This account uses Telegram login. Please open the app via Telegram."
       });
     }
 

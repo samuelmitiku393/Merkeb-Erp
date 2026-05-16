@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -13,6 +13,8 @@ import {
   IconButton,
   Avatar,
   Fade,
+  CircularProgress,
+  Divider,
   useTheme,
 } from '@mui/material';
 import {
@@ -20,7 +22,14 @@ import {
   VisibilityOff,
   AdminPanelSettings as AdminIcon,
   Login as LoginIcon,
+  Send as TelegramIcon,
 } from '@mui/icons-material';
+import {
+  isTelegramWebApp,
+  getInitData,
+  getTelegramUser,
+  hapticNotification,
+} from '../services/telegram';
 
 interface FormData {
   username: string;
@@ -29,9 +38,9 @@ interface FormData {
 
 const Login = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, telegramLogin } = useAuth();
   const theme = useTheme();
-  
+
   const [formData, setFormData] = useState<FormData>({
     username: '',
     password: ''
@@ -39,12 +48,41 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isTelegram, setIsTelegram] = useState(false);
+  const [telegramAutoLogging, setTelegramAutoLogging] = useState(false);
+  const [tgUser, setTgUser] = useState<{ first_name?: string; username?: string } | null>(null);
+
+  // ── Detect Telegram environment and auto-login ────────────────────────────
+  useEffect(() => {
+    const inTelegram = isTelegramWebApp();
+    setIsTelegram(inTelegram);
+
+    if (inTelegram) {
+      const user = getTelegramUser();
+      if (user) setTgUser(user);
+
+      // Attempt silent auto-login using validated initData
+      const initData = getInitData();
+      if (initData) {
+        setTelegramAutoLogging(true);
+        telegramLogin(initData).then((result) => {
+          if (result.success) {
+            hapticNotification('success');
+            navigate('/');
+          } else {
+            // Auto-login failed – show the manual login form as fallback
+            setError(result.error ?? 'Telegram login failed. Please use the form below.');
+            setTelegramAutoLogging(false);
+            hapticNotification('error');
+          }
+        });
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+    setFormData({ ...formData, [e.target.name]: e.target.value });
     setError('');
   };
 
@@ -58,11 +96,50 @@ const Login = () => {
     if (result.success) {
       navigate('/');
     } else {
-      setError((result as any).error || 'Login failed');
+      setError((result as { success: false; error: string }).error || 'Login failed');
     }
 
     setLoading(false);
   };
+
+  const handleTelegramLogin = async () => {
+    setLoading(true);
+    setError('');
+    const initData = getInitData();
+    const result = await telegramLogin(initData);
+    if (result.success) {
+      hapticNotification('success');
+      navigate('/');
+    } else {
+      setError((result as { success: false; error: string }).error || 'Telegram login failed');
+      hapticNotification('error');
+    }
+    setLoading(false);
+  };
+
+  // ── Loading state while auto-logging in via Telegram ─────────────────────
+  if (telegramAutoLogging) {
+    return (
+      <Box
+        sx={{
+          minHeight: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 100%)`,
+        }}
+      >
+        <CircularProgress size={56} sx={{ color: '#fff', mb: 3 }} />
+        <Typography variant="h6" sx={{ color: '#fff', fontWeight: 600 }}>
+          {tgUser?.first_name ? `Welcome, ${tgUser.first_name}!` : 'Signing you in…'}
+        </Typography>
+        <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', mt: 1 }}>
+          Verifying your Telegram identity
+        </Typography>
+      </Box>
+    );
+  }
 
   return (
     <Box
@@ -103,59 +180,84 @@ const Login = () => {
               boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
             }}
           >
-            <Avatar 
-              sx={{ 
-                m: 1, 
-                bgcolor: 'primary.main', 
-                width: 64, 
+            <Avatar
+              sx={{
+                m: 1,
+                bgcolor: 'primary.main',
+                width: 64,
                 height: 64,
                 boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
                 transition: 'transform 0.3s ease-in-out',
-                '&:hover': {
-                  transform: 'scale(1.05)'
-                }
+                '&:hover': { transform: 'scale(1.05)' }
               }}
             >
               <AdminIcon sx={{ fontSize: 36 }} />
             </Avatar>
 
-            <Typography 
-              component="h1" 
-              variant="h4" 
-              sx={{ 
-                mb: 1, 
-                fontWeight: 700, 
-                color: 'text.primary',
-                letterSpacing: '-0.5px'
-              }}
+            <Typography
+              component="h1"
+              variant="h4"
+              sx={{ mb: 1, fontWeight: 700, color: 'text.primary', letterSpacing: '-0.5px' }}
             >
               Merkeb ERP
             </Typography>
-            
-            <Typography 
-              variant="body1" 
-              color="text.secondary" 
-              sx={{ mb: 4, textAlign: 'center' }}
-            >
-              Enter your credentials to access your account
+
+            <Typography variant="body1" color="text.secondary" sx={{ mb: 4, textAlign: 'center' }}>
+              {isTelegram
+                ? 'Tap the button below to sign in with your Telegram account'
+                : 'Enter your credentials to access your account'}
             </Typography>
 
             {error && (
               <Fade in={!!error}>
-                <Alert 
-                  severity="error" 
-                  sx={{ 
-                    width: '100%', 
-                    mb: 3, 
-                    borderRadius: 2,
-                    alignItems: 'center'
-                  }}
+                <Alert
+                  severity="error"
+                  sx={{ width: '100%', mb: 3, borderRadius: 2, alignItems: 'center' }}
                 >
                   {error}
                 </Alert>
               </Fade>
             )}
 
+            {/* ── Telegram Login Button (shown when inside Telegram) ── */}
+            {isTelegram && (
+              <>
+                <Button
+                  fullWidth
+                  variant="contained"
+                  disabled={loading}
+                  startIcon={<TelegramIcon />}
+                  onClick={handleTelegramLogin}
+                  id="telegram-login-button"
+                  sx={{
+                    mb: 3,
+                    py: 1.5,
+                    borderRadius: 2,
+                    textTransform: 'none',
+                    fontSize: '1.05rem',
+                    fontWeight: 600,
+                    bgcolor: '#2AABEE',
+                    '&:hover': {
+                      bgcolor: '#1a96d6',
+                      transform: 'translateY(-2px)',
+                      boxShadow: '0 6px 16px rgba(42,171,238,0.4)',
+                    },
+                    boxShadow: '0 4px 12px rgba(42,171,238,0.3)',
+                    transition: 'all 0.2s ease-in-out',
+                  }}
+                >
+                  {loading ? 'Signing in…' : 'Continue with Telegram'}
+                </Button>
+
+                <Divider sx={{ width: '100%', mb: 3 }}>
+                  <Typography variant="caption" color="text.secondary">
+                    or use credentials
+                  </Typography>
+                </Divider>
+              </>
+            )}
+
+            {/* ── Standard Username/Password Form ── */}
             <Box component="form" onSubmit={handleSubmit} sx={{ width: '100%' }}>
               <TextField
                 margin="normal"
@@ -165,7 +267,7 @@ const Login = () => {
                 label="Username"
                 name="username"
                 autoComplete="username"
-                autoFocus
+                autoFocus={!isTelegram}
                 value={formData.username}
                 onChange={handleChange}
                 disabled={loading}
@@ -176,9 +278,7 @@ const Login = () => {
                     borderRadius: 2,
                     backgroundColor: 'rgba(0, 0, 0, 0.02)',
                     transition: 'all 0.2s',
-                    '&:hover': {
-                      backgroundColor: 'rgba(0, 0, 0, 0.04)',
-                    },
+                    '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.04)' },
                     '&.Mui-focused': {
                       backgroundColor: '#fff',
                       boxShadow: `0 0 0 2px ${theme.palette.primary.light}40`,
@@ -206,9 +306,7 @@ const Login = () => {
                     borderRadius: 2,
                     backgroundColor: 'rgba(0, 0, 0, 0.02)',
                     transition: 'all 0.2s',
-                    '&:hover': {
-                      backgroundColor: 'rgba(0, 0, 0, 0.04)',
-                    },
+                    '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.04)' },
                     '&.Mui-focused': {
                       backgroundColor: '#fff',
                       boxShadow: `0 0 0 2px ${theme.palette.primary.light}40`,
@@ -237,9 +335,9 @@ const Login = () => {
                 variant="contained"
                 disabled={loading}
                 endIcon={<LoginIcon />}
-                sx={{ 
-                  mt: 1, 
-                  mb: 3, 
+                sx={{
+                  mt: 1,
+                  mb: 3,
                   py: 1.5,
                   borderRadius: 2,
                   textTransform: 'none',

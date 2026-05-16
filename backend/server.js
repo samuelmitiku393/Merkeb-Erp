@@ -144,16 +144,23 @@ app.use((req, res, next) => {
 });
 
 // CORS middleware
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+  "http://localhost:5174",
+  "http://127.0.0.1:5174",
+  "https://merkeb-erp-frontend.vercel.app",
+  "https://merkeb.netlify.app",
+  /\.netlify\.app$/,
+  /\.vercel\.app$/,
+];
+// Allow any explicitly configured frontend URL (e.g. custom domain)
+if (process.env.FRONTEND_URL) {
+  allowedOrigins.push(process.env.FRONTEND_URL);
+}
+
 app.use(cors({
-  origin: [
-    "http://localhost:5173", 
-    "http://127.0.0.1:5173", 
-    "http://localhost:5174", 
-    "http://127.0.0.1:5174", 
-    "https://merkeb-erp-frontend.vercel.app",
-    "https://merkeb.netlify.app",
-    /\.netlify\.app$/
-  ],
+  origin: allowedOrigins,
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"]
@@ -355,6 +362,7 @@ const server = app.listen(PORT, () => {
   console.log('\x1b[36m%s\x1b[0m', `✓ Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log('\x1b[36m%s\x1b[0m', `✓ Logs directory: ${logsDir}`);
   console.log('\x1b[33m%s\x1b[0m', `✓ Authentication: ${process.env.JWT_SECRET ? 'ENABLED' : 'DISABLED - Set JWT_SECRET in .env'}`);
+  console.log('\x1b[33m%s\x1b[0m', `✓ Telegram Mini App: ${process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_BOT_TOKEN !== 'your-telegram-bot-token-here' ? 'ENABLED' : 'DISABLED - Set TELEGRAM_BOT_TOKEN in .env'}`);
   console.log('='.repeat(80) + '\n');
 });
 
