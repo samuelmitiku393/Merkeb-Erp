@@ -5,14 +5,16 @@ import crypto from "crypto";
 import User from "../models/User.js";
 import AuditLog from "../models/AuditLog.js";
 import { authenticateToken, authorizeRoles } from "../middleware/auth.js";
+import rateLimit from 'express-rate-limit';
 import { auditLog } from "../middleware/auditMiddleware.js";
+import { apiLimiter } from "../middleware/rateLimiter.js";
 
 const router = express.Router();
 
 // ─── Telegram Mini App Login ────────────────────────────────────────────────
 // Validates Telegram initData using HMAC-SHA256 per Telegram's spec:
 // https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app
-router.post("/telegram-login", async (req, res, next) => {
+router.post("/telegram-login", apiLimiter, async (req, res, next) => {
   try {
     const { initData } = req.body;
 
@@ -179,7 +181,7 @@ router.post("/telegram-login", async (req, res, next) => {
 
 
 // Login route - no authentication needed, but we log manually
-router.post("/login", async (req, res, next) => {
+router.post("/login", apiLimiter, async (req, res, next) => {
   try {
     const { username, password } = req.body;
 
@@ -275,10 +277,31 @@ router.post("/login", async (req, res, next) => {
     }
 
     // Send response
+    // Generate refresh token
+    const refreshToken = jwt.sign(
+      { id: user._id, username: user.username, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN || '7d' }
+    );
+    // Set refresh token as HTTP-only cookie
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    });
+    // Set access token as HTTP-only cookie
+    res.cookie('accessToken', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 24 * 60 * 60 * 1000 // 24h
+    });
     res.json({
       success: true,
       message: "Login successful",
       token,
+      refreshToken,
       user: {
         id: user._id,
         username: user.username,
@@ -292,11 +315,7 @@ router.post("/login", async (req, res, next) => {
 });
 
 // Register - Requires authentication and admin role
-router.post("/register", 
-  authenticateToken,           // 1. First authenticate
-  authorizeRoles("admin"),     // 2. Then check role
-  auditLog('CREATE', 'USER', 'New user registered'), // 3. Then audit (now has user info)
-  async (req, res, next) => {
+router.post("/register", apiLimiter, authenticateToken, authorizeRoles("admin"), auditLog('CREATE', 'USER', 'New user registered'), async (req, res, next) => {
     try {
       const { username, password, role } = req.body;
 
@@ -338,11 +357,7 @@ router.post("/register",
 });
 
 // Batch user registration - Requires authentication and admin role
-router.post("/register/batch", 
-  authenticateToken,           // 1. First authenticate
-  authorizeRoles("admin"),     // 2. Then check role
-  auditLog('CREATE', 'USER', 'Batch user registration'), // 3. Then audit
-  async (req, res, next) => {
+router.post("/register/batch", apiLimiter, authenticateToken, authorizeRoles("admin"), auditLog('CREATE', 'USER', 'Batch user registration'), async (req, res, next) => {
     try {
       const { users } = req.body;
 
@@ -506,6 +521,27 @@ router.get("/verify", authenticateToken, (req, res) => {
     message: "Token is valid",
     user: req.user
   });
+});
+
+router.post("/refresh-token", async (req, res, next) => {
+  try {
+    const refreshToken = req.cookies?.refreshToken;
+    if (!refreshToken) {
+      return res.status(401).json({ message: "Refresh token missing" });
+    }
+    const payload = jwt.verify(refreshToken, process.env.JWT_SECRET);
+    const newAccessToken = jwt.sign({ id: payload.id, username: payload.username, role: payload.role }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || "24h" });
+    // Set new access token cookie
+    res.cookie('accessToken', newAccessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 24 * 60 * 60 * 1000
+    });
+    res.json({ success: true, token: newAccessToken });
+  } catch (error) {
+    next(error);
+  }
 });
 
 export default router;

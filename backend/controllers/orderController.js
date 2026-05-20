@@ -3,11 +3,14 @@ import Product from "../models/Product.js";
 
 // CREATE ORDER
 export const createOrder = async (req, res) => {
+  const session = await Order.startSession();
   try {
+    await session.startTransaction();
     const { customer, items } = req.body;
 
     // Basic validation
     if (!customer || !items || items.length === 0) {
+      await session.abortTransaction();
       return res.status(400).json({ message: "Invalid order data" });
     }
 
@@ -16,9 +19,10 @@ export const createOrder = async (req, res) => {
 
     for (let item of items) {
       // 1. Validate product exists
-      const product = await Product.findById(item.product);
+      const product = await Product.findById(item.product).session(session);
 
       if (!product) {
+        await session.abortTransaction();
         return res.status(404).json({
           message: `Product not found: ${item.product}`
         });
@@ -34,10 +38,11 @@ export const createOrder = async (req, res) => {
         {
           $inc: { "sizes.$.stock": -item.quantity }
         },
-        { new: true }
+        { new: true, session }
       );
 
       if (!updatedProduct) {
+        await session.abortTransaction();
         return res.status(400).json({
           message: `Not enough stock for ${product.name} (Size: ${item.size})`
         });
@@ -68,15 +73,17 @@ export const createOrder = async (req, res) => {
       deliveryStatus: "pending"
     });
 
-    const savedOrder = await order.save();
-
+    const savedOrder = await order.save({ session });
+    await session.commitTransaction();
     res.status(201).json(savedOrder);
-
   } catch (error) {
+    await session.abortTransaction();
     res.status(500).json({
       message: "Server error",
       error: error.message
     });
+  } finally {
+    session.endSession();
   }
 };
 
@@ -117,11 +124,14 @@ export const updateOrderStatus = async (req, res) => {
 };
 // UPDATE ORDER - Full order update
 export const updateOrder = async (req, res) => {
+  const session = await Order.startSession();
   try {
+    await session.startTransaction();
     const { customer, items } = req.body;
-    const order = await Order.findById(req.params.id);
+    const order = await Order.findById(req.params.id).session(session);
 
     if (!order) {
+      await session.abortTransaction();
       return res.status(404).json({ message: "Order not found" });
     }
 
@@ -132,9 +142,9 @@ export const updateOrder = async (req, res) => {
     // If items are being updated, validate stock changes
     if (items && items.length > 0) {
       for (let item of items) {
-        const product = await Product.findById(item.product);
-        
+        const product = await Product.findById(item.product).session(session);
         if (!product) {
+          await session.abortTransaction();
           return res.status(404).json({
             message: `Product not found: ${item.product}`
           });
@@ -147,15 +157,11 @@ export const updateOrder = async (req, res) => {
 
         let stockChange = 0;
         if (existingItem) {
-          // If quantity decreased, stock increases (positive change)
-          // If quantity increased, stock decreases (negative change)
-          stockChange = existingItem.quantity - item.quantity;
+          stockChange = existingItem.quantity - item.quantity; // positive => return stock
         } else {
-          // New item - decrease stock
-          stockChange = -item.quantity;
+          stockChange = -item.quantity; // new item, deduct stock
         }
 
-        // Update stock if needed
         if (stockChange !== 0) {
           const updatedProduct = await Product.findOneAndUpdate(
             {
@@ -163,13 +169,11 @@ export const updateOrder = async (req, res) => {
               "sizes.size": item.size,
               "sizes.stock": { $gte: stockChange > 0 ? 0 : -stockChange }
             },
-            {
-              $inc: { "sizes.$.stock": stockChange }
-            },
-            { new: true }
+            { $inc: { "sizes.$.stock": stockChange } },
+            { new: true, session }
           );
-
           if (!updatedProduct && stockChange < 0) {
+            await session.abortTransaction();
             return res.status(400).json({
               message: `Not enough stock for ${product.name} (Size: ${item.size})`
             });
@@ -182,12 +186,11 @@ export const updateOrder = async (req, res) => {
           quantity: item.quantity,
           price: product.price
         };
-
         processedItems.push(orderItem);
         totalPrice += product.price * item.quantity;
       }
     } else {
-      // If no items provided, keep existing items
+      // Keep existing items if none provided
       processedItems.push(...order.items);
       totalPrice = order.totalPrice;
     }
@@ -200,25 +203,30 @@ export const updateOrder = async (req, res) => {
         items: processedItems,
         totalPrice: totalPrice
       },
-      { new: true }
+      { new: true, session }
     ).populate("customer").populate("items.product");
 
+    await session.commitTransaction();
     res.json(updatedOrder);
-
   } catch (error) {
+    await session.abortTransaction();
     res.status(500).json({
       message: "Error updating order",
       error: error.message
     });
+  } finally {
+    session.endSession();
   }
 };
 
 // DELETE ORDER
 export const deleteOrder = async (req, res) => {
+  const session = await Order.startSession();
   try {
-    const order = await Order.findById(req.params.id);
-
+    await session.startTransaction();
+    const order = await Order.findById(req.params.id).session(session);
     if (!order) {
+      await session.abortTransaction();
       return res.status(404).json({ message: "Order not found" });
     }
 
@@ -229,20 +237,21 @@ export const deleteOrder = async (req, res) => {
           _id: item.product,
           "sizes.size": item.size
         },
-        {
-          $inc: { "sizes.$.stock": item.quantity }
-        }
+        { $inc: { "sizes.$.stock": item.quantity } },
+        { session }
       );
     }
 
-    await Order.findByIdAndDelete(req.params.id);
-
+    await Order.findByIdAndDelete(req.params.id).session(session);
+    await session.commitTransaction();
     res.json({ message: "Order deleted successfully" });
-
   } catch (error) {
+    await session.abortTransaction();
     res.status(500).json({
       message: "Error deleting order",
       error: error.message
     });
+  } finally {
+    session.endSession();
   }
 };
