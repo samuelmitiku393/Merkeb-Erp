@@ -552,7 +552,7 @@ const QuickOrder = () => {
                                 color="primary"
                                 sx={{ ml: 1 }}
                               >
-                                ${product.price}
+                                {product.price} ETB
                               </Typography>
                             </Box>
                           ))}
@@ -574,7 +574,7 @@ const QuickOrder = () => {
                             {item.selectedProduct.name}
                           </Typography>
                           <Typography variant="caption" color="text.secondary" display="block">
-                            {item.selectedProduct.team} • ${item.selectedProduct.price}
+                            {item.selectedProduct.team} • {item.selectedProduct.price} ETB
                           </Typography>
                         </Box>
                         <Box sx={{ display: 'flex', gap: 1 }}>
@@ -702,7 +702,7 @@ const QuickOrder = () => {
                       </Typography>
                     </Box>
                     <Typography variant="body2" fontWeight="medium" sx={{ ml: 2 }}>
-                      ${(item.selectedProduct.price * item.quantity).toLocaleString()}
+                      {(item.selectedProduct.price * item.quantity).toLocaleString()} ETB
                     </Typography>
                   </Box>
                 )
@@ -733,7 +733,7 @@ const QuickOrder = () => {
                 fontWeight="bold"
                 sx={{ fontSize: isMobile ? '1.3rem' : '1.5rem' }}
               >
-                ${orderTotal.toLocaleString()}
+                {orderTotal.toLocaleString()} ETB
               </Typography>
             </Box>
 

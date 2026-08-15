@@ -149,7 +149,7 @@ const Dashboard = () => {
         },
         {
             label: "Revenue",
-            value: `$${formatCurrency(stats?.revenue)}`,
+            value: `${formatCurrency(stats?.revenue)} ETB`,
             icon: AttachMoney,
             color: theme.palette.warning.main,
             trend: { value: 15.3, isUp: true },
@@ -571,7 +571,7 @@ const Dashboard = () => {
                                             fontWeight="bold"
                                             sx={{ mb: 1 }}
                                         >
-                                            ${formatCurrency(profit?.totalRevenue)}
+                                            {formatCurrency(profit?.totalRevenue)} ETB
                                         </Typography>
                                         <Chip
                                             label="+15%"
@@ -595,7 +595,7 @@ const Dashboard = () => {
                                             fontWeight="bold"
                                             sx={{ mb: 1 }}
                                         >
-                                            ${formatCurrency(profit?.totalCost)}
+                                            {formatCurrency(profit?.totalCost)} ETB
                                         </Typography>
                                         <Chip
                                             label="+8%"
@@ -619,7 +619,7 @@ const Dashboard = () => {
                                             fontSize={{ xs: '1.25rem', sm: '1.5rem' }}
                                             sx={{ mb: 1 }}
                                         >
-                                            ${formatCurrency(profit?.profit)}
+                                            {formatCurrency(profit?.profit)} ETB
                                         </Typography>
                                         <Chip
                                             label={`${formatPercentage(profit?.profitMargin)}% margin`}
@@ -695,7 +695,7 @@ const Dashboard = () => {
                                                             {stat.productName} {stat.team ? `(${stat.team})` : ''}
                                                         </Typography>
                                                         <Typography variant="caption" fontWeight="bold" color="primary">
-                                                            {stat.totalQuantity} sold (₹{(stat.totalRevenue || 0).toLocaleString()})
+                                                            {stat.totalQuantity} sold ({(stat.totalRevenue || 0).toLocaleString()} ETB)
                                                         </Typography>
                                                     </Box>
                                                     <LinearProgress

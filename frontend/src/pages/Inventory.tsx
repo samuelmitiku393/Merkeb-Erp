@@ -364,7 +364,7 @@ const Inventory = () => {
                             Price
                         </Typography>
                         <Typography variant="body1" fontWeight="medium">
-                            ${product.price?.toFixed(2) || "0.00"}
+                            {product.price?.toLocaleString() || "0"} ETB
                         </Typography>
                     </Grid>
                     <Grid item xs={6}>
@@ -372,7 +372,7 @@ const Inventory = () => {
                             Cost
                         </Typography>
                         <Typography variant="body1" fontWeight="medium">
-                            ${product.costPrice?.toFixed(2) || "0.00"}
+                            {product.costPrice?.toLocaleString() || "0"} ETB
                         </Typography>
                     </Grid>
                 </Grid>
@@ -710,8 +710,8 @@ const Inventory = () => {
                                                     </Typography>
                                                 </TableCell>
                                                 <TableCell>{product.team || "-"}</TableCell>
-                                                <TableCell>${product.price?.toFixed(2) || "0.00"}</TableCell>
-                                                <TableCell>${product.costPrice?.toFixed(2) || "0.00"}</TableCell>
+                                                <TableCell>{product.price?.toLocaleString() || "0"} ETB</TableCell>
+                                                <TableCell>{product.costPrice?.toLocaleString() || "0"} ETB</TableCell>
                                                 <TableCell>
                                                     <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                                                         {product.sizes.map((size) => {
@@ -1023,7 +1023,7 @@ const Inventory = () => {
                                     onChange={handleFormChange}
                                     margin="normal"
                                     InputProps={{
-                                        startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                                        startAdornment: <InputAdornment position="start">ETB</InputAdornment>,
                                     }}
                                     helperText="Price customers will pay"
                                     size={isMobile ? "small" : "medium"}
@@ -1040,7 +1040,7 @@ const Inventory = () => {
                                     margin="normal"
                                     required
                                     InputProps={{
-                                        startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                                        startAdornment: <InputAdornment position="start">ETB</InputAdornment>,
                                     }}
                                     helperText="Your purchase cost"
                                     size={isMobile ? "small" : "medium"}

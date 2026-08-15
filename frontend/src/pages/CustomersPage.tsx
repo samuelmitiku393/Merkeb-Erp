@@ -247,7 +247,7 @@ const CustomersPage = () => {
           <Card elevation={1} sx={{ borderLeft: `4px solid ${theme.palette.warning.main}` }}>
             <CardContent sx={{ py: 2 }}>
               <Typography variant="caption" color="text.secondary">Total Lifetime Value</Typography>
-              <Typography variant="h4" fontWeight="bold">₹{stats.totalRevenue.toLocaleString()}</Typography>
+              <Typography variant="h4" fontWeight="bold">{stats.totalRevenue.toLocaleString()} ETB</Typography>
             </CardContent>
           </Card>
         </Grid>
@@ -330,7 +330,7 @@ const CustomersPage = () => {
                   </TableCell>
                   <TableCell align="right">
                     <Typography fontWeight="bold" color="success.main">
-                      ₹{(customer.totalSpent || 0).toLocaleString()}
+                      {(customer.totalSpent || 0).toLocaleString()} ETB
                     </Typography>
                   </TableCell>
                   <TableCell align="right">
@@ -435,7 +435,7 @@ const CustomersPage = () => {
               <Box>
                 <Typography variant="caption" color="text.secondary">Total Spent</Typography>
                 <Typography variant="h5" color="success.main" fontWeight="bold">
-                  ₹{(selectedCustomer.totalSpent || 0).toLocaleString()}
+                  {(selectedCustomer.totalSpent || 0).toLocaleString()} ETB
                 </Typography>
               </Box>
               {selectedCustomer.notes && (
@@ -453,7 +453,7 @@ const CustomersPage = () => {
                 {selectedCustomer.orders?.map((order) => (
                   <ListItem key={order._id} divider sx={{ px: 0 }}>
                     <ListItemText
-                      primary={`Order Total: ₹${order.totalPrice}`}
+                      primary={`Order Total: ${order.totalPrice} ETB`}
                       secondary={`Status: ${order.status} | ${new Date(order.createdAt!).toLocaleDateString()}`}
                     />
                   </ListItem>

@@ -430,7 +430,7 @@ const OrdersPage = () => {
                                                     {order.customer?.name || 'Unknown Customer'}
                                                 </Typography>
                                                 <Typography variant="body1" color="primary" fontWeight="bold">
-                                                    ₹{order.totalPrice?.toLocaleString() || 0}
+                                                    {order.totalPrice?.toLocaleString() || 0} ETB
                                                 </Typography>
                                             </Box>
                                         }
@@ -746,10 +746,10 @@ const OrdersPage = () => {
                                     Total Amount
                                 </Typography>
                                 <Typography variant="h5" color="primary" fontWeight="bold">
-                                    ₹{editMode 
-                                        ? editFormData.items.reduce((sum, item) => sum + (item.price * item.quantity), 0).toLocaleString()
-                                        : selectedOrder.totalPrice?.toLocaleString()
-                                    }
+                                    {(editMode 
+                                        ? editFormData.items.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+                                        : selectedOrder.totalPrice || 0
+                                    ).toLocaleString()} ETB
                                 </Typography>
                             </Box>
 
