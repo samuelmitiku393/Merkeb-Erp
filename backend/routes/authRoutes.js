@@ -97,10 +97,14 @@ router.post("/telegram-login", apiLimiter, async (req, res, next) => {
         finalUsername = `${generatedUsername}_${counter++}`;
       }
 
+      // First user registered in DB automatically becomes admin
+      const userCount = await User.countDocuments();
+      const assignedRole = userCount === 0 ? "admin" : "user";
+
       user = new User({
         username: finalUsername,
         password: null,
-        role: "user",
+        role: assignedRole,
         telegramId,
         telegramUsername: telegramUsername || null,
         firstName: first_name || null,
@@ -314,9 +318,31 @@ router.post("/login", apiLimiter, async (req, res, next) => {
   }
 });
 
-// Register - Requires authentication and admin role
-router.post("/register", apiLimiter, authenticateToken, authorizeRoles("admin"), auditLog('CREATE', 'USER', 'New user registered'), async (req, res, next) => {
+// Register - First registered user automatically becomes admin; subsequent registrations require admin auth
+router.post("/register", apiLimiter, async (req, res, next) => {
     try {
+      const userCount = await User.countDocuments();
+
+      // If database already has users, enforce admin authentication
+      if (userCount > 0) {
+        const authHeader = req.headers["authorization"];
+        const token = authHeader && authHeader.split(" ")[1];
+
+        if (!token) {
+          return res.status(401).json({ message: "Authentication required to register new users" });
+        }
+
+        try {
+          const decoded = jwt.verify(token, process.env.JWT_SECRET);
+          if (decoded.role !== "admin") {
+            return res.status(403).json({ message: "Only administrators can create new users" });
+          }
+          req.user = decoded;
+        } catch {
+          return res.status(401).json({ message: "Invalid or expired token" });
+        }
+      }
+
       const { username, password, role } = req.body;
 
       if (!username || !password) {
@@ -332,10 +358,13 @@ router.post("/register", apiLimiter, authenticateToken, authorizeRoles("admin"),
         });
       }
 
+      // First user is ALWAYS admin; subsequent users use requested role or default to 'user'
+      const assignedRole = userCount === 0 ? "admin" : (role || "user");
+
       const user = new User({
         username: username.toLowerCase(),
         password: password,
-        role: role || "user"
+        role: assignedRole
       });
 
       await user.hashPassword();
@@ -343,7 +372,7 @@ router.post("/register", apiLimiter, authenticateToken, authorizeRoles("admin"),
 
       res.status(201).json({
         success: true,
-        message: "User created successfully",
+        message: userCount === 0 ? "First admin user registered successfully" : "User created successfully",
         user: {
           id: user._id,
           username: user.username,
