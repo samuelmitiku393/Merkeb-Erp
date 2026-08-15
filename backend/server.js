@@ -186,8 +186,9 @@ app.get("/api/health", (req, res) => {
   });
 });
 
-// Auth routes (public)
+// Auth routes (public - accessible with or without /api prefix)
 app.use("/api/auth", authRoutes);
+app.use("/auth", authRoutes);
 
 // ===== PROTECTED ROUTES =====
 // All routes below this middleware require authentication
