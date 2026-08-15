@@ -2,7 +2,7 @@
 import axios, { type InternalAxiosRequestConfig, type AxiosResponse, type AxiosError } from 'axios';
 
 const API = axios.create({
-  baseURL: 'https://merkeb-erp.onrender.com/api',
+  baseURL: import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:5000/api' : 'https://merkeb-erp.onrender.com/api'),
   headers: {
     'Content-Type': 'application/json',
   },
