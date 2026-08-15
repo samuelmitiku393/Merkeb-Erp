@@ -359,8 +359,20 @@ const Profile = () => {
         }
     };
 
+    const getUserDisplayName = () => {
+        if (!user) return 'User';
+        const fullName = [user.firstName, user.lastName].filter(Boolean).join(' ');
+        return fullName.trim() ? fullName : user.username;
+    };
+
     const getUserInitials = () => {
-        return user?.username ? user.username.charAt(0).toUpperCase() : 'U';
+        if (!user) return 'U';
+        if (user.firstName || user.lastName) {
+            const first = user.firstName ? user.firstName.charAt(0) : '';
+            const last = user.lastName ? user.lastName.charAt(0) : '';
+            return (first + last).toUpperCase() || 'U';
+        }
+        return user.username ? user.username.charAt(0).toUpperCase() : 'U';
     };
 
     // Audit trail handlers
@@ -651,12 +663,17 @@ const Profile = () => {
                                     <Box>
                                         <Stack direction="row" spacing={1} alignItems="center">
                                             <Typography variant="h6" fontWeight="600">
-                                                {user?.username || 'User'}
+                                                {getUserDisplayName()}
                                             </Typography>
                                             {user?.role === 'admin' && (
                                                 <VerifiedIcon color="primary" fontSize="small" />
                                             )}
                                         </Stack>
+                                        {(user?.firstName || user?.lastName) && user?.username && (
+                                            <Typography variant="caption" color="text.secondary" display="block">
+                                                @{user.username}
+                                            </Typography>
+                                        )}
                                         <Chip
                                             label={user?.role === 'admin' ? 'Administrator' : 'User'}
                                             size="small"
