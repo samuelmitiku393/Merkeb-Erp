@@ -22,6 +22,9 @@ connectDB();
 
 const app = express();
 
+// Trust proxy for Render / Heroku / reverse proxies (fixes rate limiter X-Forwarded-For warning)
+app.set("trust proxy", 1);
+
 // Create logs directory if it doesn't exist
 const logsDir = path.join(process.cwd(), "logs");
 if (!fs.existsSync(logsDir)) {
@@ -177,40 +180,44 @@ app.get("/", (req, res) => {
   res.send("API Running...");
 });
 
-// Health check endpoint
-app.get("/api/health", (req, res) => {
+// Health check endpoint (accessible with or without /api prefix)
+const handleHealth = (req, res) => {
   res.json({
     status: "OK",
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development'
   });
-});
+};
+app.get("/api/health", handleHealth);
+app.get("/health", handleHealth);
 
 // Auth routes (public - accessible with or without /api prefix)
 app.use("/api/auth", authRoutes);
 app.use("/auth", authRoutes);
 
 // ===== PROTECTED ROUTES =====
-// All routes below this middleware require authentication
-app.use("/api", authenticateToken);
+// All routes below require authentication (check both /api and root paths)
+app.use(["/api", "/products", "/customers", "/orders", "/analytics", "/inventory", "/notifications", "/reports", "/audit", "/me"], authenticateToken);
 
-// Protected API routes
-app.use("/api/products", productRoutes);
-app.use("/api/customers", customerRoutes);
-app.use("/api/orders", orderRoutes);
-app.use("/api/analytics", analyticsRoutes);
-app.use("/api/inventory", inventoryRoutes);
-app.use("/api/notifications", notificationRoutes);
-app.use("/api/reports", reportRoutes);
-app.use("/api/audit", auditRoutes); // Protected: audit logs require authentication
+// Protected API routes (accessible with or without /api prefix)
+app.use(["/api/products", "/products"], productRoutes);
+app.use(["/api/customers", "/customers"], customerRoutes);
+app.use(["/api/orders", "/orders"], orderRoutes);
+app.use(["/api/analytics", "/analytics"], analyticsRoutes);
+app.use(["/api/inventory", "/inventory"], inventoryRoutes);
+app.use(["/api/notifications", "/notifications"], notificationRoutes);
+app.use(["/api/reports", "/reports"], reportRoutes);
+app.use(["/api/audit", "/audit"], auditRoutes);
 
 // Get current user info (protected)
-app.get("/api/me", (req, res) => {
+const handleMe = (req, res) => {
   res.json({
     user: req.user,
     message: "Authenticated user information"
   });
-});
+};
+app.get("/api/me", handleMe);
+app.get("/me", handleMe);
 
 // 404 handler
 app.use((req, res, next) => {
