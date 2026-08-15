@@ -10,6 +10,7 @@ import Dashboard from "./pages/Dashboard";
 import OrdersPage from "./pages/OrdersPage";
 import QuickOrder from "./pages/QuickOrder";
 import Inventory from "./pages/Inventory";
+import CustomersPage from "./pages/CustomersPage";
 import Profile from "./pages/Profile";
 import {
   isTelegramWebApp,
@@ -117,6 +118,12 @@ const AppRoutes = () => {
       <Route path="/inventory" element={
         <ProtectedRoute>
           <Layout><Inventory /></Layout>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/customers" element={
+        <ProtectedRoute>
+          <Layout><CustomersPage /></Layout>
         </ProtectedRoute>
       } />
 

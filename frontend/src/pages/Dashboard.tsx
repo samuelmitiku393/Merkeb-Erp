@@ -664,6 +664,62 @@ const Dashboard = () => {
                         </Card>
                     </Fade>
 
+                    {/* Top Selling Products Visual Chart */}
+                    {productStats.length > 0 && (
+                        <Fade in={true} timeout={950}>
+                            <Card
+                                elevation={0}
+                                sx={{
+                                    mb: 3,
+                                    borderRadius: 3,
+                                    border: `1px solid ${alpha(theme.palette.divider, 0.1)}`
+                                }}
+                            >
+                                <CardContent sx={{ p: { xs: 2.5, sm: 3 } }}>
+                                    <Typography
+                                        variant="h6"
+                                        fontSize={{ xs: '1rem', sm: '1.1rem', md: '1.25rem' }}
+                                        fontWeight="bold"
+                                        sx={{ mb: 2 }}
+                                    >
+                                        🔥 Top Selling Products & Jerseys
+                                    </Typography>
+                                    <Stack spacing={2}>
+                                        {productStats.slice(0, 5).map((stat, idx) => {
+                                            const maxQty = Math.max(...productStats.map(p => p.totalQuantity || 1));
+                                            const percent = Math.round(((stat.totalQuantity || 0) / maxQty) * 100);
+                                            return (
+                                                <Box key={idx}>
+                                                    <Box display="flex" justifyContent="space-between" alignItems="center" mb={0.5}>
+                                                        <Typography variant="body2" fontWeight="medium">
+                                                            {stat.productName} {stat.team ? `(${stat.team})` : ''}
+                                                        </Typography>
+                                                        <Typography variant="caption" fontWeight="bold" color="primary">
+                                                            {stat.totalQuantity} sold (₹{(stat.totalRevenue || 0).toLocaleString()})
+                                                        </Typography>
+                                                    </Box>
+                                                    <LinearProgress
+                                                        variant="determinate"
+                                                        value={percent}
+                                                        sx={{
+                                                            height: 10,
+                                                            borderRadius: 5,
+                                                            bgcolor: alpha(theme.palette.primary.main, 0.08),
+                                                            '& .MuiLinearProgress-bar': {
+                                                                borderRadius: 5,
+                                                                background: `linear-gradient(90deg, ${theme.palette.primary.main} 0%, ${theme.palette.success.main} 100%)`
+                                                            }
+                                                        }}
+                                                    />
+                                                </Box>
+                                            );
+                                        })}
+                                    </Stack>
+                                </CardContent>
+                            </Card>
+                        </Fade>
+                    )}
+
                     {/* Restock Suggestions */}
                     {restock.length > 0 && (
                         <Fade in={true} timeout={1000}>

@@ -17,6 +17,7 @@ import {
     ShoppingCart as OrdersIcon,
     AddCircle as QuickOrderIcon,
     Inventory as InventoryIcon,
+    People as PeopleIcon,
     Person as ProfileIcon
 } from "@mui/icons-material";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -56,6 +57,7 @@ const Layout = ({ children }: LayoutProps) => {
         { label: "Orders", value: "/orders", icon: <OrdersIcon /> },
         { label: "Quick Order", value: "/quick-order", icon: <QuickOrderIcon /> },
         { label: "Inventory", value: "/inventory", icon: <InventoryIcon /> },
+        { label: "Customers", value: "/customers", icon: <PeopleIcon /> },
         { label: "Profile", value: "/profile", icon: <ProfileIcon /> }
     ];
 

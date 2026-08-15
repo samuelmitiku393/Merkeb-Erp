@@ -3,28 +3,21 @@
  *
  * Sends messages to Telegram users/groups via the Bot API.
  * Requires TELEGRAM_BOT_TOKEN in .env to function.
- *
- * Usage:
- *   import { notifyAdmins } from '../services/notificationService.js';
- *   await notifyAdmins('⚠️ Low stock: Manchester United M — only 2 left!');
  */
 
 import User from "../models/User.js";
+import Order from "../models/Order.js";
+import Product from "../models/Product.js";
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
 
 /**
  * Send a message to a single Telegram chat ID.
- * @param {number|string} chatId - Telegram user/group chat ID
- * @param {string} text - Message text (Markdown supported)
- * @returns {Promise<boolean>} true on success, false on failure
  */
 export const sendTelegramMessage = async (chatId, text) => {
   if (!BOT_TOKEN || BOT_TOKEN === "your-telegram-bot-token-here") {
-    console.log(
-      "[Notification] Telegram bot token not configured — skipping notification."
-    );
+    console.log("[Notification] Telegram bot token not configured — skipping notification.");
     return false;
   }
 
@@ -40,12 +33,10 @@ export const sendTelegramMessage = async (chatId, text) => {
     });
 
     const data = await response.json();
-
     if (!data.ok) {
       console.error("[Notification] Telegram API error:", data.description);
       return false;
     }
-
     return true;
   } catch (err) {
     console.error("[Notification] Failed to send Telegram message:", err.message);
@@ -55,7 +46,6 @@ export const sendTelegramMessage = async (chatId, text) => {
 
 /**
  * Broadcast a message to all admin users who have a linked Telegram ID.
- * @param {string} text - Message text
  */
 export const notifyAdmins = async (text) => {
   if (!BOT_TOKEN || BOT_TOKEN === "your-telegram-bot-token-here") {
@@ -64,7 +54,6 @@ export const notifyAdmins = async (text) => {
   }
 
   try {
-    // Find all admin users with a Telegram ID linked
     const admins = await User.find({
       role: "admin",
       telegramId: { $ne: null }
@@ -88,9 +77,6 @@ export const notifyAdmins = async (text) => {
 
 /**
  * Send a low-stock alert for a specific product size.
- * @param {string} productName
- * @param {string} size
- * @param {number} currentStock
  */
 export const notifyLowStock = async (productName, size, currentStock) => {
   const emoji = currentStock === 0 ? "🚨" : "⚠️";
@@ -105,7 +91,6 @@ export const notifyLowStock = async (productName, size, currentStock) => {
 
 /**
  * Send a new order notification.
- * @param {object} order - Populated order object
  */
 export const notifyNewOrder = async (order) => {
   const customerName = order.customer?.name || "Unknown Customer";
@@ -118,4 +103,66 @@ export const notifyNewOrder = async (order) => {
     `Total: *${order.totalPrice} ETB*\n\n` +
     `Items:\n${itemsList}`;
   await notifyAdmins(message);
+};
+
+/**
+ * Send a daily sales digest to Telegram admins.
+ */
+export const sendDailySalesDigest = async () => {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const orders = await Order.find({
+      createdAt: { $gte: today },
+      status: { $ne: "cancelled" }
+    }).populate("items.product");
+
+    const totalOrders = orders.length;
+    let totalRevenue = 0;
+    let totalCost = 0;
+    const itemSales = {};
+
+    for (const order of orders) {
+      totalRevenue += order.totalPrice || 0;
+      for (const item of order.items) {
+        const prod = item.product;
+        const costPrice = prod?.costPrice || 0;
+        totalCost += costPrice * item.quantity;
+
+        const name = prod?.name || "Unknown Item";
+        if (!itemSales[name]) itemSales[name] = 0;
+        itemSales[name] += item.quantity;
+      }
+    }
+
+    const netProfit = totalRevenue - totalCost;
+
+    // Find top selling product
+    let topSeller = "N/A";
+    let maxQty = 0;
+    for (const [name, qty] of Object.entries(itemSales)) {
+      if (qty > maxQty) {
+        maxQty = qty;
+        topSeller = `${name} (${qty} sold)`;
+      }
+    }
+
+    const dateStr = today.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    const message =
+      `📊 *Daily Merkeb ERP Digest* (${dateStr})\n` +
+      `-----------------------------------\n` +
+      `📦 *Orders Today*: ${totalOrders}\n` +
+      `💰 *Total Revenue*: ${totalRevenue.toLocaleString()} ETB\n` +
+      `💵 *Net Profit*: ${netProfit.toLocaleString()} ETB\n` +
+      `🔥 *Top Seller*: ${topSeller}\n` +
+      `-----------------------------------\n` +
+      `Keep up the great work! 🚀`;
+
+    await notifyAdmins(message);
+    return message;
+  } catch (err) {
+    console.error("[Notification] Error generating daily sales digest:", err.message);
+    return null;
+  }
 };
