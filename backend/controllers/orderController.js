@@ -23,11 +23,14 @@ const checkAndNotifyLowStock = async (productId) => {
 
 // CREATE ORDER
 export const createOrder = async (req, res) => {
+  const session = await Order.startSession();
   try {
+    await session.startTransaction();
     const { customer, items } = req.body;
 
     // Basic validation
     if (!customer || !items || items.length === 0) {
+      await session.abortTransaction();
       return res.status(400).json({ message: "Invalid order data" });
     }
 
@@ -37,9 +40,10 @@ export const createOrder = async (req, res) => {
 
     for (let item of items) {
       // 1. Validate product exists
-      const product = await Product.findById(item.product);
+      const product = await Product.findById(item.product).session(session);
 
       if (!product) {
+        await session.abortTransaction();
         return res.status(404).json({
           message: `Product not found: ${item.product}`
         });
@@ -55,10 +59,11 @@ export const createOrder = async (req, res) => {
         {
           $inc: { "sizes.$.stock": -item.quantity }
         },
-        { new: true }
+        { new: true, session }
       );
 
       if (!updatedProduct) {
+        await session.abortTransaction();
         return res.status(400).json({
           message: `Not enough stock for ${product.name} (Size: ${item.size})`
         });
@@ -88,22 +93,29 @@ export const createOrder = async (req, res) => {
       deliveryStatus: "pending"
     });
 
-    const savedOrder = await order.save();
-    const populatedOrder = await Order.findById(savedOrder._id)
-      .populate("customer")
-      .populate("items.product");
+    const savedOrder = await order.save({ session });
+    await session.commitTransaction();
 
-    // 6. Fire Telegram notifications (non-blocking)
-    notifyNewOrder(populatedOrder).catch(() => {});
+    // 6. Fire Telegram notifications (after commit, non-blocking)
+    Order.findById(savedOrder._id)
+      .populate("customer")
+      .populate("items.product")
+      .then((populatedOrder) => {
+        if (populatedOrder) notifyNewOrder(populatedOrder).catch(() => {});
+      })
+      .catch(() => {});
+
     affectedProductIds.forEach((id) => checkAndNotifyLowStock(id));
 
     res.status(201).json(savedOrder);
-
   } catch (error) {
+    await session.abortTransaction();
     res.status(500).json({
       message: "Server error",
       error: error.message
     });
+  } finally {
+    session.endSession();
   }
 };
 
@@ -135,7 +147,6 @@ export const getOrders = async (req, res) => {
     ]);
 
     // Optional: filter by customer name/phone in memory (small datasets)
-    // For large datasets this should be moved to a DB text index
     let filtered = orders;
     if (search) {
       const term = search.toLowerCase();
@@ -201,20 +212,25 @@ export const updateOrderStatus = async (req, res) => {
 
 // CANCEL ORDER — restores stock, records cancellation reason
 export const cancelOrder = async (req, res) => {
+  const session = await Order.startSession();
   try {
+    await session.startTransaction();
     const { reason = "" } = req.body;
 
-    const order = await Order.findById(req.params.id);
+    const order = await Order.findById(req.params.id).session(session);
 
     if (!order) {
+      await session.abortTransaction();
       return res.status(404).json({ message: "Order not found" });
     }
 
     if (order.status === "cancelled") {
+      await session.abortTransaction();
       return res.status(400).json({ message: "Order is already cancelled" });
     }
 
     if (order.status === "delivered") {
+      await session.abortTransaction();
       return res.status(400).json({
         message: "Cannot cancel a delivered order. Use refund instead."
       });
@@ -224,32 +240,40 @@ export const cancelOrder = async (req, res) => {
     for (const item of order.items) {
       await Product.findOneAndUpdate(
         { _id: item.product, "sizes.size": item.size },
-        { $inc: { "sizes.$.stock": item.quantity } }
+        { $inc: { "sizes.$.stock": item.quantity } },
+        { session }
       );
     }
 
     order.status = "cancelled";
     order.cancelledAt = new Date();
     order.cancellationReason = reason;
-    await order.save();
+    await order.save({ session });
 
+    await session.commitTransaction();
     res.json({ message: "Order cancelled successfully", order });
 
   } catch (error) {
+    await session.abortTransaction();
     res.status(500).json({
       message: "Error cancelling order",
       error: error.message
     });
+  } finally {
+    session.endSession();
   }
 };
 
 // UPDATE ORDER - Full order update
 export const updateOrder = async (req, res) => {
+  const session = await Order.startSession();
   try {
+    await session.startTransaction();
     const { customer, items } = req.body;
-    const order = await Order.findById(req.params.id);
+    const order = await Order.findById(req.params.id).session(session);
 
     if (!order) {
+      await session.abortTransaction();
       return res.status(404).json({ message: "Order not found" });
     }
 
@@ -260,9 +284,10 @@ export const updateOrder = async (req, res) => {
     // If items are being updated, validate stock changes
     if (items && items.length > 0) {
       for (let item of items) {
-        const product = await Product.findById(item.product);
+        const product = await Product.findById(item.product).session(session);
 
         if (!product) {
+          await session.abortTransaction();
           return res.status(404).json({
             message: `Product not found: ${item.product}`
           });
@@ -275,9 +300,9 @@ export const updateOrder = async (req, res) => {
 
         let stockChange = 0;
         if (existingItem) {
-          stockChange = existingItem.quantity - item.quantity;
+          stockChange = existingItem.quantity - item.quantity; // positive => return stock
         } else {
-          stockChange = -item.quantity;
+          stockChange = -item.quantity; // new item, deduct stock
         }
 
         if (stockChange !== 0) {
@@ -288,10 +313,11 @@ export const updateOrder = async (req, res) => {
               "sizes.stock": { $gte: stockChange > 0 ? 0 : -stockChange }
             },
             { $inc: { "sizes.$.stock": stockChange } },
-            { new: true }
+            { new: true, session }
           );
 
           if (!updatedProduct && stockChange < 0) {
+            await session.abortTransaction();
             return res.status(400).json({
               message: `Not enough stock for ${product.name} (Size: ${item.size})`
             });
@@ -309,6 +335,7 @@ export const updateOrder = async (req, res) => {
         totalPrice += product.price * item.quantity;
       }
     } else {
+      // Keep existing items if none provided
       processedItems.push(...order.items);
       totalPrice = order.totalPrice;
     }
@@ -320,25 +347,32 @@ export const updateOrder = async (req, res) => {
         items: processedItems,
         totalPrice
       },
-      { new: true }
+      { new: true, session }
     ).populate("customer").populate("items.product");
 
+    await session.commitTransaction();
     res.json(updatedOrder);
 
   } catch (error) {
+    await session.abortTransaction();
     res.status(500).json({
       message: "Error updating order",
       error: error.message
     });
+  } finally {
+    session.endSession();
   }
 };
 
 // DELETE ORDER
 export const deleteOrder = async (req, res) => {
+  const session = await Order.startSession();
   try {
-    const order = await Order.findById(req.params.id);
+    await session.startTransaction();
+    const order = await Order.findById(req.params.id).session(session);
 
     if (!order) {
+      await session.abortTransaction();
       return res.status(404).json({ message: "Order not found" });
     }
 
@@ -346,20 +380,27 @@ export const deleteOrder = async (req, res) => {
     if (order.status !== "cancelled") {
       for (const item of order.items) {
         await Product.findOneAndUpdate(
-          { _id: item.product, "sizes.size": item.size },
-          { $inc: { "sizes.$.stock": item.quantity } }
+          {
+            _id: item.product,
+            "sizes.size": item.size
+          },
+          { $inc: { "sizes.$.stock": item.quantity } },
+          { session }
         );
       }
     }
 
-    await Order.findByIdAndDelete(req.params.id);
-
+    await Order.findByIdAndDelete(req.params.id).session(session);
+    await session.commitTransaction();
     res.json({ message: "Order deleted successfully" });
 
   } catch (error) {
+    await session.abortTransaction();
     res.status(500).json({
       message: "Error deleting order",
       error: error.message
     });
+  } finally {
+    session.endSession();
   }
 };

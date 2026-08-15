@@ -1,0 +1,222 @@
+{
+  "timestamp": "2026-04-30T08:57:07.624Z",
+  "message": "Route not found: POST /api/audit/settings-change",
+  "stack": "Error: Route not found: POST /api/audit/settings-change\n    at file:///D:/projects/Merkeb-Erp/backend/server.js:221:17\n    at Layer.handleRequest (D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at trimPrefix (D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\index.js:342:13)\n    at D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\index.js:297:9\n    at processParams (D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\index.js:582:12)\n    at next (D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\index.js:291:5)\n    at authenticateToken (file:///D:/projects/Merkeb-Erp/backend/middleware/auth.js:16:5)\n    at Layer.handleRequest (D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at trimPrefix (D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\index.js:342:13)\n    at D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\index.js:297:9\n    at processParams (D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\index.js:582:12)\n    at next (D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\index.js:291:5)\n    at D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\index.js:688:15\n    at next (D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\index.js:276:14)\n    at router.handle (D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\index.js:186:3)\n    at router (D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\index.js:60:12)",
+  "name": "Error",
+  "code": "ROUTE_NOT_FOUND",
+  "url": "/api/audit/settings-change",
+  "method": "POST",
+  "body": {
+    "setting": "emailNotifications",
+    "value": true
+  },
+  "params": {},
+  "query": {},
+  "headers": {
+    "host": "localhost:5000",
+    "connection": "keep-alive",
+    "content-length": "45",
+    "sec-ch-ua-platform": "\"Android\"",
+    "authorization": "[REDACTED]",
+    "user-agent": "Mozilla/5.0 (Linux; Android 13; SM-G981B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Mobile Safari/537.36",
+    "accept": "application/json, text/plain, */*",
+    "sec-ch-ua": "\"Google Chrome\";v=\"147\", \"Not.A/Brand\";v=\"8\", \"Chromium\";v=\"147\"",
+    "content-type": "application/json",
+    "sec-ch-ua-mobile": "?1",
+    "origin": "http://localhost:5173",
+    "sec-fetch-site": "same-site",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-dest": "empty",
+    "referer": "http://localhost:5173/",
+    "accept-encoding": "gzip, deflate, br, zstd",
+    "accept-language": "en-US,en;q=0.9,am;q=0.8"
+  },
+  "ip": "::1"
+}
+---
+{
+  "timestamp": "2026-04-30T08:57:08.001Z",
+  "message": "Route not found: POST /api/audit/settings-change",
+  "stack": "Error: Route not found: POST /api/audit/settings-change\n    at file:///D:/projects/Merkeb-Erp/backend/server.js:221:17\n    at Layer.handleRequest (D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at trimPrefix (D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\index.js:342:13)\n    at D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\index.js:297:9\n    at processParams (D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\index.js:582:12)\n    at next (D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\index.js:291:5)\n    at authenticateToken (file:///D:/projects/Merkeb-Erp/backend/middleware/auth.js:16:5)\n    at Layer.handleRequest (D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at trimPrefix (D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\index.js:342:13)\n    at D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\index.js:297:9\n    at processParams (D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\index.js:582:12)\n    at next (D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\index.js:291:5)\n    at D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\index.js:688:15\n    at next (D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\index.js:276:14)\n    at router.handle (D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\index.js:186:3)\n    at router (D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\index.js:60:12)",
+  "name": "Error",
+  "code": "ROUTE_NOT_FOUND",
+  "url": "/api/audit/settings-change",
+  "method": "POST",
+  "body": {
+    "setting": "emailNotifications",
+    "value": true
+  },
+  "params": {},
+  "query": {},
+  "headers": {
+    "host": "localhost:5000",
+    "connection": "keep-alive",
+    "content-length": "45",
+    "sec-ch-ua-platform": "\"Android\"",
+    "authorization": "[REDACTED]",
+    "user-agent": "Mozilla/5.0 (Linux; Android 13; SM-G981B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Mobile Safari/537.36",
+    "accept": "application/json, text/plain, */*",
+    "sec-ch-ua": "\"Google Chrome\";v=\"147\", \"Not.A/Brand\";v=\"8\", \"Chromium\";v=\"147\"",
+    "content-type": "application/json",
+    "sec-ch-ua-mobile": "?1",
+    "origin": "http://localhost:5173",
+    "sec-fetch-site": "same-site",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-dest": "empty",
+    "referer": "http://localhost:5173/",
+    "accept-encoding": "gzip, deflate, br, zstd",
+    "accept-language": "en-US,en;q=0.9,am;q=0.8"
+  },
+  "ip": "::1"
+}
+---
+{
+  "timestamp": "2026-04-30T08:57:11.083Z",
+  "message": "Route not found: POST /api/audit/settings-change",
+  "stack": "Error: Route not found: POST /api/audit/settings-change\n    at file:///D:/projects/Merkeb-Erp/backend/server.js:221:17\n    at Layer.handleRequest (D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at trimPrefix (D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\index.js:342:13)\n    at D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\index.js:297:9\n    at processParams (D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\index.js:582:12)\n    at next (D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\index.js:291:5)\n    at authenticateToken (file:///D:/projects/Merkeb-Erp/backend/middleware/auth.js:16:5)\n    at Layer.handleRequest (D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at trimPrefix (D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\index.js:342:13)\n    at D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\index.js:297:9\n    at processParams (D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\index.js:582:12)\n    at next (D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\index.js:291:5)\n    at D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\index.js:688:15\n    at next (D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\index.js:276:14)\n    at router.handle (D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\index.js:186:3)\n    at router (D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\index.js:60:12)",
+  "name": "Error",
+  "code": "ROUTE_NOT_FOUND",
+  "url": "/api/audit/settings-change",
+  "method": "POST",
+  "body": {
+    "setting": "emailNotifications",
+    "value": false
+  },
+  "params": {},
+  "query": {},
+  "headers": {
+    "host": "localhost:5000",
+    "connection": "keep-alive",
+    "content-length": "46",
+    "sec-ch-ua-platform": "\"Android\"",
+    "authorization": "[REDACTED]",
+    "user-agent": "Mozilla/5.0 (Linux; Android 13; SM-G981B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Mobile Safari/537.36",
+    "accept": "application/json, text/plain, */*",
+    "sec-ch-ua": "\"Google Chrome\";v=\"147\", \"Not.A/Brand\";v=\"8\", \"Chromium\";v=\"147\"",
+    "content-type": "application/json",
+    "sec-ch-ua-mobile": "?1",
+    "origin": "http://localhost:5173",
+    "sec-fetch-site": "same-site",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-dest": "empty",
+    "referer": "http://localhost:5173/",
+    "accept-encoding": "gzip, deflate, br, zstd",
+    "accept-language": "en-US,en;q=0.9,am;q=0.8"
+  },
+  "ip": "::1"
+}
+---
+{
+  "timestamp": "2026-04-30T08:57:11.085Z",
+  "message": "Route not found: POST /api/audit/settings-change",
+  "stack": "Error: Route not found: POST /api/audit/settings-change\n    at file:///D:/projects/Merkeb-Erp/backend/server.js:221:17\n    at Layer.handleRequest (D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at trimPrefix (D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\index.js:342:13)\n    at D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\index.js:297:9\n    at processParams (D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\index.js:582:12)\n    at next (D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\index.js:291:5)\n    at authenticateToken (file:///D:/projects/Merkeb-Erp/backend/middleware/auth.js:16:5)\n    at Layer.handleRequest (D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at trimPrefix (D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\index.js:342:13)\n    at D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\index.js:297:9\n    at processParams (D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\index.js:582:12)\n    at next (D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\index.js:291:5)\n    at D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\index.js:688:15\n    at next (D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\index.js:276:14)\n    at router.handle (D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\index.js:186:3)\n    at router (D:\\projects\\Merkeb-Erp\\backend\\node_modules\\router\\index.js:60:12)",
+  "name": "Error",
+  "code": "ROUTE_NOT_FOUND",
+  "url": "/api/audit/settings-change",
+  "method": "POST",
+  "body": {
+    "setting": "emailNotifications",
+    "value": false
+  },
+  "params": {},
+  "query": {},
+  "headers": {
+    "host": "localhost:5000",
+    "connection": "keep-alive",
+    "content-length": "46",
+    "sec-ch-ua-platform": "\"Android\"",
+    "authorization": "[REDACTED]",
+    "user-agent": "Mozilla/5.0 (Linux; Android 13; SM-G981B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Mobile Safari/537.36",
+    "accept": "application/json, text/plain, */*",
+    "sec-ch-ua": "\"Google Chrome\";v=\"147\", \"Not.A/Brand\";v=\"8\", \"Chromium\";v=\"147\"",
+    "content-type": "application/json",
+    "sec-ch-ua-mobile": "?1",
+    "origin": "http://localhost:5173",
+    "sec-fetch-site": "same-site",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-dest": "empty",
+    "referer": "http://localhost:5173/",
+    "accept-encoding": "gzip, deflate, br, zstd",
+    "accept-language": "en-US,en;q=0.9,am;q=0.8"
+  },
+  "ip": "::1"
+}
+---
+{
+  "timestamp": "2026-04-30T09:01:21.947Z",
+  "message": "next is not a function",
+  "stack": "TypeError: next is not a function\n    at model.<anonymous> (file:///D:/projects/Merkeb-Erp/backend/models/User.js:57:3)\n    at Kareem.execPre (D:\\projects\\Merkeb-Erp\\backend\\node_modules\\kareem\\index.js:68:39)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)",
+  "name": "TypeError",
+  "url": "/api/auth/update-profile",
+  "method": "PUT",
+  "body": {
+    "username": "Yeron",
+    "email": "yyeronemitiku11@gmail.com",
+    "phone": "+251 912 181 590",
+    "location": "",
+    "bio": "",
+    "avatar": ""
+  },
+  "params": {},
+  "query": {},
+  "headers": {
+    "host": "localhost:5000",
+    "connection": "keep-alive",
+    "content-length": "118",
+    "sec-ch-ua-platform": "\"Android\"",
+    "authorization": "[REDACTED]",
+    "user-agent": "Mozilla/5.0 (Linux; Android 13; SM-G981B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Mobile Safari/537.36",
+    "accept": "application/json, text/plain, */*",
+    "sec-ch-ua": "\"Google Chrome\";v=\"147\", \"Not.A/Brand\";v=\"8\", \"Chromium\";v=\"147\"",
+    "content-type": "application/json",
+    "sec-ch-ua-mobile": "?1",
+    "origin": "http://localhost:5173",
+    "sec-fetch-site": "same-site",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-dest": "empty",
+    "referer": "http://localhost:5173/",
+    "accept-encoding": "gzip, deflate, br, zstd",
+    "accept-language": "en-US,en;q=0.9,am;q=0.8"
+  },
+  "ip": "::1"
+}
+---
+{
+  "timestamp": "2026-04-30T09:02:42.172Z",
+  "message": "next is not a function",
+  "stack": "TypeError: next is not a function\n    at model.<anonymous> (file:///D:/projects/Merkeb-Erp/backend/models/User.js:57:3)\n    at Kareem.execPre (D:\\projects\\Merkeb-Erp\\backend\\node_modules\\kareem\\index.js:68:39)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)",
+  "name": "TypeError",
+  "url": "/api/auth/update-profile",
+  "method": "PUT",
+  "body": {
+    "username": "Yeron",
+    "email": "yyeronemitiku11@gmail.com",
+    "phone": "+251 912 181 590",
+    "location": "",
+    "bio": "",
+    "avatar": ""
+  },
+  "params": {},
+  "query": {},
+  "headers": {
+    "host": "localhost:5000",
+    "connection": "keep-alive",
+    "content-length": "118",
+    "sec-ch-ua-platform": "\"Android\"",
+    "authorization": "[REDACTED]",
+    "user-agent": "Mozilla/5.0 (Linux; Android 13; SM-G981B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Mobile Safari/537.36",
+    "accept": "application/json, text/plain, */*",
+    "sec-ch-ua": "\"Google Chrome\";v=\"147\", \"Not.A/Brand\";v=\"8\", \"Chromium\";v=\"147\"",
+    "content-type": "application/json",
+    "sec-ch-ua-mobile": "?1",
+    "origin": "http://localhost:5173",
+    "sec-fetch-site": "same-site",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-dest": "empty",
+    "referer": "http://localhost:5173/",
+    "accept-encoding": "gzip, deflate, br, zstd",
+    "accept-language": "en-US,en;q=0.9,am;q=0.8"
+  },
+  "ip": "::1"
+}
+---
