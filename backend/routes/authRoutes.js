@@ -308,8 +308,18 @@ router.post("/login", apiLimiter, async (req, res, next) => {
       refreshToken,
       user: {
         id: user._id,
+        _id: user._id,
         username: user.username,
-        role: user.role
+        role: user.role,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        telegramUsername: user.telegramUsername,
+        photoUrl: user.photoUrl,
+        email: user.email,
+        phone: user.phone,
+        location: user.location,
+        bio: user.bio,
+        avatar: user.avatar
       }
     });
 
@@ -544,12 +554,34 @@ router.put("/update-profile",
 });
 
 // Token verification route
-router.get("/verify", authenticateToken, (req, res) => {
-  res.json({
-    success: true,
-    message: "Token is valid",
-    user: req.user
-  });
+router.get("/verify", authenticateToken, async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user.id).select("-password");
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    res.json({
+      success: true,
+      message: "Token is valid",
+      user: {
+        id: user._id,
+        _id: user._id,
+        username: user.username,
+        role: user.role,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        telegramUsername: user.telegramUsername,
+        photoUrl: user.photoUrl,
+        email: user.email,
+        phone: user.phone,
+        location: user.location,
+        bio: user.bio,
+        avatar: user.avatar
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
 });
 
 router.post("/refresh-token", async (req, res, next) => {

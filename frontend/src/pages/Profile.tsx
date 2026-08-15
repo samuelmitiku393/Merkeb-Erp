@@ -362,15 +362,23 @@ const Profile = () => {
     const getUserDisplayName = () => {
         if (!user) return 'User';
         const fullName = [user.firstName, user.lastName].filter(Boolean).join(' ');
-        return fullName.trim() ? fullName : user.username;
+        if (fullName.trim()) return fullName;
+        if (user.telegramUsername) return user.telegramUsername;
+        return user.username;
     };
 
     const getUserInitials = () => {
         if (!user) return 'U';
         if (user.firstName || user.lastName) {
-            const first = user.firstName ? user.firstName.charAt(0) : '';
-            const last = user.lastName ? user.lastName.charAt(0) : '';
-            return (first + last).toUpperCase() || 'U';
+            const parts = [user.firstName, user.lastName].filter(Boolean).join(' ').trim().split(/\s+/);
+            if (parts.length >= 2) {
+                return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+            } else if (parts.length === 1 && parts[0].length > 0) {
+                return parts[0].charAt(0).toUpperCase();
+            }
+        }
+        if (user.telegramUsername) {
+            return user.telegramUsername.charAt(0).toUpperCase();
         }
         return user.username ? user.username.charAt(0).toUpperCase() : 'U';
     };
@@ -655,7 +663,7 @@ const Profile = () => {
                                                 bgcolor: user?.role === 'admin' ? 'secondary.main' : 'primary.main',
                                                 fontSize: 32
                                             }}
-                                            src={profileData.avatar}
+                                            src={user?.photoUrl || user?.avatar || profileData.avatar}
                                         >
                                             {getUserInitials()}
                                         </Avatar>
@@ -669,10 +677,16 @@ const Profile = () => {
                                                 <VerifiedIcon color="primary" fontSize="small" />
                                             )}
                                         </Stack>
-                                        {(user?.firstName || user?.lastName) && user?.username && (
+                                        {user?.telegramUsername ? (
                                             <Typography variant="caption" color="text.secondary" display="block">
-                                                @{user.username}
+                                                @{user.telegramUsername}
                                             </Typography>
+                                        ) : (
+                                            user?.username && !user.username.startsWith('tg_') && (
+                                                <Typography variant="caption" color="text.secondary" display="block">
+                                                    @{user.username}
+                                                </Typography>
+                                            )
                                         )}
                                         <Chip
                                             label={user?.role === 'admin' ? 'Administrator' : 'User'}
