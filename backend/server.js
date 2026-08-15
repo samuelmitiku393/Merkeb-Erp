@@ -186,7 +186,6 @@ app.get("/api/health", (req, res) => {
 
 // Auth routes (public)
 app.use("/api/auth", authRoutes);
-app.use("/api/audit", auditRoutes);
 
 // ===== PROTECTED ROUTES =====
 // All routes below this middleware require authentication
@@ -200,28 +199,7 @@ app.use("/api/analytics", analyticsRoutes);
 app.use("/api/inventory", inventoryRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/reports", reportRoutes);
-
-// Test route with error handling (protected)
-app.get("/api/test-product", async (req, res, next) => {
-  try {
-    const product = await Product.create({
-      name: "Test Jersey",
-      team: "Test Team",
-      price: 1000,
-      sizes: [{ size: "M", stock: 5 }]
-    });
-
-    logAuth('TEST_PRODUCT_CREATED', {
-      productId: product._id,
-      userId: req.user.id
-    }, req);
-
-    res.json(product);
-  } catch (error) {
-    logError(error, req);
-    next(error);
-  }
-});
+app.use("/api/audit", auditRoutes); // Protected: audit logs require authentication
 
 // Get current user info (protected)
 app.get("/api/me", (req, res) => {

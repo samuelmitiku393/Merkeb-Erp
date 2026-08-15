@@ -1,0 +1,121 @@
+/**
+ * Telegram Push Notification Service
+ *
+ * Sends messages to Telegram users/groups via the Bot API.
+ * Requires TELEGRAM_BOT_TOKEN in .env to function.
+ *
+ * Usage:
+ *   import { notifyAdmins } from '../services/notificationService.js';
+ *   await notifyAdmins('⚠️ Low stock: Manchester United M — only 2 left!');
+ */
+
+import User from "../models/User.js";
+
+const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const TELEGRAM_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
+
+/**
+ * Send a message to a single Telegram chat ID.
+ * @param {number|string} chatId - Telegram user/group chat ID
+ * @param {string} text - Message text (Markdown supported)
+ * @returns {Promise<boolean>} true on success, false on failure
+ */
+export const sendTelegramMessage = async (chatId, text) => {
+  if (!BOT_TOKEN || BOT_TOKEN === "your-telegram-bot-token-here") {
+    console.log(
+      "[Notification] Telegram bot token not configured — skipping notification."
+    );
+    return false;
+  }
+
+  try {
+    const response = await fetch(`${TELEGRAM_API}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text,
+        parse_mode: "Markdown"
+      })
+    });
+
+    const data = await response.json();
+
+    if (!data.ok) {
+      console.error("[Notification] Telegram API error:", data.description);
+      return false;
+    }
+
+    return true;
+  } catch (err) {
+    console.error("[Notification] Failed to send Telegram message:", err.message);
+    return false;
+  }
+};
+
+/**
+ * Broadcast a message to all admin users who have a linked Telegram ID.
+ * @param {string} text - Message text
+ */
+export const notifyAdmins = async (text) => {
+  if (!BOT_TOKEN || BOT_TOKEN === "your-telegram-bot-token-here") {
+    console.log("[Notification] Telegram bot not configured — skipping admin notification.");
+    return;
+  }
+
+  try {
+    // Find all admin users with a Telegram ID linked
+    const admins = await User.find({
+      role: "admin",
+      telegramId: { $ne: null }
+    }).select("telegramId username");
+
+    if (admins.length === 0) {
+      console.log("[Notification] No admin users with Telegram linked found.");
+      return;
+    }
+
+    const results = await Promise.allSettled(
+      admins.map((admin) => sendTelegramMessage(admin.telegramId, text))
+    );
+
+    const succeeded = results.filter((r) => r.status === "fulfilled" && r.value).length;
+    console.log(`[Notification] Sent to ${succeeded}/${admins.length} admins.`);
+  } catch (err) {
+    console.error("[Notification] Error fetching admins for notification:", err.message);
+  }
+};
+
+/**
+ * Send a low-stock alert for a specific product size.
+ * @param {string} productName
+ * @param {string} size
+ * @param {number} currentStock
+ */
+export const notifyLowStock = async (productName, size, currentStock) => {
+  const emoji = currentStock === 0 ? "🚨" : "⚠️";
+  const statusText = currentStock === 0 ? "OUT OF STOCK" : `only *${currentStock}* left`;
+  const message =
+    `${emoji} *Low Stock Alert*\n\n` +
+    `Product: *${productName}* (Size: ${size})\n` +
+    `Status: ${statusText}\n\n` +
+    `Please restock soon.`;
+  await notifyAdmins(message);
+};
+
+/**
+ * Send a new order notification.
+ * @param {object} order - Populated order object
+ */
+export const notifyNewOrder = async (order) => {
+  const customerName = order.customer?.name || "Unknown Customer";
+  const itemsList = order.items
+    .map((i) => `• ${i.product?.name || "Item"} (${i.size}) x${i.quantity}`)
+    .join("\n");
+  const message =
+    `🛒 *New Order Placed*\n\n` +
+    `Customer: *${customerName}*\n` +
+    `Total: *${order.totalPrice} ETB*\n\n` +
+    `Items:\n${itemsList}`;
+  await notifyAdmins(message);
+};

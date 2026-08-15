@@ -44,9 +44,15 @@ export interface Product {
   _id: string;
   name: string;
   team?: string;
+  sku?: string;
+  category?: string;
+  description?: string;
+  imageUrl?: string;
   price: number;
   costPrice: number;
   sizes: ProductSize[];
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 // ─────────────────────────────────────────────
@@ -58,6 +64,9 @@ export interface Customer {
   phone: string;
   address?: string;
   instagramHandle?: string;
+  notes?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 // ─────────────────────────────────────────────
@@ -76,19 +85,51 @@ export interface OrderItem {
   price: number;
 }
 
-export type OrderStatus = 'pending' | 'confirmed' | 'shipped' | 'delivered';
+export type OrderStatus =
+  | 'pending'
+  | 'confirmed'
+  | 'shipped'
+  | 'delivered'
+  | 'cancelled'
+  | 'refunded';
 
 export interface Order {
   _id: string;
   customer: {
+    _id?: string;
     name: string;
     phone: string;
     address?: string;
   };
   items: OrderItem[];
   status: OrderStatus;
+  paymentStatus?: 'pending' | 'paid' | 'refunded';
+  deliveryStatus?: 'pending' | 'shipped' | 'delivered';
   totalPrice: number;
   createdAt?: string;
+  updatedAt?: string;
+  cancelledAt?: string;
+  cancellationReason?: string;
+}
+
+// ─────────────────────────────────────────────
+//  Pagination
+// ─────────────────────────────────────────────
+export interface PaginationInfo {
+  currentPage: number;
+  totalPages: number;
+  totalCount: number;
+  limit: number;
+}
+
+export interface PaginatedOrders {
+  orders: Order[];
+  pagination: PaginationInfo;
+}
+
+export interface PaginatedProducts {
+  products: Product[];
+  pagination: PaginationInfo;
 }
 
 // ─────────────────────────────────────────────

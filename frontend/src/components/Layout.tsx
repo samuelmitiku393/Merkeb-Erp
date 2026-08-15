@@ -9,7 +9,8 @@ import {
     Typography,
     useScrollTrigger,
     useTheme,
-    useMediaQuery
+    useMediaQuery,
+    Chip
 } from "@mui/material";
 import {
     Dashboard as DashboardIcon,
@@ -34,7 +35,7 @@ interface NavItem {
 const Layout = ({ children }: LayoutProps) => {
     const navigate = useNavigate();
     const location = useLocation();
-    const { user: _user, logout: _logout } = useAuth();
+    const { user, logout: _logout } = useAuth();
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
@@ -80,7 +81,7 @@ const Layout = ({ children }: LayoutProps) => {
                 }}
             >
                 <Toolbar sx={{ px: { xs: 2, sm: 3 } }}>
-                    <Box sx={{ flexGrow: 1 }}>
+                    <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', gap: 1.5 }}>
                         <Typography
                             variant="h6"
                             fontWeight="bold"
@@ -93,17 +94,15 @@ const Layout = ({ children }: LayoutProps) => {
                         >
                             Merkeb ERP
                         </Typography>
-                        {/* Optional: Show page subtitle below the main title */}
-                        <Typography
-                            variant="caption"
-                            sx={{
-                                color: 'text.secondary',
-                                display: 'block',
-                                mt: -0.5
-                            }}
-                        >
-
-                        </Typography>
+                        {user?.role === 'admin' && (
+                            <Chip
+                                label="Admin"
+                                color="primary"
+                                size="small"
+                                variant="outlined"
+                                sx={{ height: 20, fontSize: '0.65rem', fontWeight: 'bold' }}
+                            />
+                        )}
                     </Box>
                 </Toolbar>
             </AppBar>

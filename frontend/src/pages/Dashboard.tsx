@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { DashboardStats, LowStockItem, ProductStat, ProfitData, RestockSuggestion } from "../types";
 import {
     Box,
@@ -51,62 +52,50 @@ import { useNavigate } from "react-router-dom";
 const Dashboard = () => {
     const theme = useTheme();
     const navigate = useNavigate();
+    const queryClient = useQueryClient();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const isTablet = useMediaQuery(theme.breakpoints.down('md'));
     const isDesktop = useMediaQuery(theme.breakpoints.up('lg'));
 
-    const [stats, setStats] = useState<DashboardStats | null>(null);
-    const [lowStock, setLowStock] = useState<LowStockItem[]>([]);
-    const [productStats, setProductStats] = useState<ProductStat[]>([]);
-    const [profit, setProfit] = useState<ProfitData | null>(null);
-    const [restock, setRestock] = useState<RestockSuggestion[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [refreshing, setRefreshing] = useState(false);
-    const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+    // ── React Query data fetching (5-min cache, auto-refetch every 5 min) ──
+    const { data: stats, isLoading: statsLoading } = useQuery<DashboardStats>({
+        queryKey: ['dashboard', 'stats'],
+        queryFn: () => API.get("/analytics/dashboard").then(r => r.data),
+        refetchInterval: 5 * 60 * 1000,
+    });
 
-    const fetchAllData = async () => {
-        try {
-            const [statsRes, lowStockRes, productRes, profitRes, restockRes] = await Promise.all([
-                API.get("/analytics/dashboard"),
-                API.get("/inventory/low-stock"),
-                API.get("/analytics/products"),
-                API.get("/analytics/profit"),
-                API.get("/inventory/restock-suggestions")
-            ]);
+    const { data: lowStock = [], isLoading: lowStockLoading } = useQuery<LowStockItem[]>({
+        queryKey: ['dashboard', 'lowStock'],
+        queryFn: () => API.get("/inventory/low-stock").then(r => r.data),
+        refetchInterval: 5 * 60 * 1000,
+    });
 
-            setStats(statsRes.data);
-            setLowStock(lowStockRes.data);
-            setProductStats(productRes.data);
-            setProfit(profitRes.data);
-            setRestock(restockRes.data);
-            setLastUpdated(new Date());
-        } catch (err) {
-            console.error("Error fetching data:", err);
-            setError("Failed to load dashboard data");
-        }
+    const { data: productStats = [], isLoading: productStatsLoading } = useQuery<ProductStat[]>({
+        queryKey: ['dashboard', 'productStats'],
+        queryFn: () => API.get("/analytics/products").then(r => r.data),
+        refetchInterval: 5 * 60 * 1000,
+    });
+
+    const { data: profit, isLoading: profitLoading } = useQuery<ProfitData>({
+        queryKey: ['dashboard', 'profit'],
+        queryFn: () => API.get("/analytics/profit").then(r => r.data),
+        refetchInterval: 5 * 60 * 1000,
+    });
+
+    const { data: restock = [], isLoading: restockLoading, isError, dataUpdatedAt } = useQuery<RestockSuggestion[]>({
+        queryKey: ['dashboard', 'restock'],
+        queryFn: () => API.get("/inventory/restock-suggestions").then(r => r.data),
+        refetchInterval: 5 * 60 * 1000,
+    });
+
+    const loading = statsLoading || lowStockLoading || productStatsLoading || profitLoading || restockLoading;
+    const error = isError ? "Failed to load dashboard data" : null;
+    const refreshing = false;
+    const lastUpdated = useMemo(() => new Date(dataUpdatedAt || Date.now()), [dataUpdatedAt]);
+
+    const handleRefresh = () => {
+        queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     };
-
-    const loadData = async () => {
-        setLoading(true);
-        setError(null);
-        await fetchAllData();
-        setLoading(false);
-    };
-
-    const handleRefresh = async () => {
-        setRefreshing(true);
-        await fetchAllData();
-        setRefreshing(false);
-    };
-
-    useEffect(() => {
-        loadData();
-        const interval = setInterval(() => {
-            fetchAllData();
-        }, 300000);
-        return () => clearInterval(interval);
-    }, []);
 
     const formatNumber = (value: unknown, defaultValue = 0): number => {
         if (value === null || value === undefined) return defaultValue;
@@ -203,7 +192,7 @@ const Dashboard = () => {
                     severity="error"
                     icon={<ErrorIcon />}
                     action={
-                        <Button color="inherit" size="small" onClick={loadData}>
+                        <Button color="inherit" size="small" onClick={handleRefresh}>
                             Retry
                         </Button>
                     }

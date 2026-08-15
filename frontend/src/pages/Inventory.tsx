@@ -55,12 +55,17 @@ import {
     MoreVert as MoreVertIcon
 } from "@mui/icons-material";
 import API from "../api/axios";
-import type { Product, LowStockItem, RestockSuggestion, ProductSize } from "../types";
+import type { Product, LowStockItem, RestockSuggestion, ProductSize, PaginatedProducts } from "../types";
 import type { ChipProps } from "@mui/material";
+import { useAuth } from "../context/AuthContext";
 
 interface ProductFormData {
     name: string;
     team: string;
+    sku: string;
+    category: string;
+    description: string;
+    imageUrl: string;
     price: string;
     costPrice: string;
     sizes: ProductSize[];
@@ -70,6 +75,8 @@ const Inventory = () => {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const isTablet = useMediaQuery(theme.breakpoints.down('md'));
+    const { user } = useAuth();
+    const isAdmin = user?.role === 'admin';
 
     const [products, setProducts] = useState<Product[]>([]);
     const [lowStockItems, setLowStockItems] = useState<LowStockItem[]>([]);
@@ -85,6 +92,10 @@ const Inventory = () => {
     const [formData, setFormData] = useState<ProductFormData>({
         name: "",
         team: "",
+        sku: "",
+        category: "",
+        description: "",
+        imageUrl: "",
         price: "",
         costPrice: "",
         sizes: [{ size: "", stock: 0 }]
@@ -101,7 +112,8 @@ const Inventory = () => {
         try {
             setLoading(true);
             const response = await API.get("/products");
-            setProducts(response.data);
+            const data = response.data.products ? response.data.products : response.data;
+            setProducts(Array.isArray(data) ? data : []);
         } catch (error) {
             setError("Failed to fetch products");
             console.error(error);
@@ -134,6 +146,10 @@ const Inventory = () => {
             setFormData({
                 name: product.name,
                 team: product.team || "",
+                sku: product.sku || "",
+                category: product.category || "",
+                description: product.description || "",
+                imageUrl: product.imageUrl || "",
                 price: product.price?.toString() || "",
                 costPrice: product.costPrice?.toString() || "",
                 sizes: product.sizes.map(s => ({
@@ -146,6 +162,10 @@ const Inventory = () => {
             setFormData({
                 name: "",
                 team: "",
+                sku: "",
+                category: "",
+                description: "",
+                imageUrl: "",
                 price: "",
                 costPrice: "",
                 sizes: [{ size: "", stock: 0 }]
@@ -942,6 +962,54 @@ const Inventory = () => {
                             onChange={handleFormChange}
                             margin="normal"
                             helperText="e.g., First Team, U21, Women's Team"
+                            size={isMobile ? "small" : "medium"}
+                        />
+                        <Grid container spacing={2}>
+                            <Grid item xs={6}>
+                                <TextField
+                                    fullWidth
+                                    label="SKU"
+                                    name="sku"
+                                    value={formData.sku}
+                                    onChange={handleFormChange}
+                                    margin="normal"
+                                    helperText="Product code / barcode"
+                                    size={isMobile ? "small" : "medium"}
+                                />
+                            </Grid>
+                            <Grid item xs={6}>
+                                <TextField
+                                    fullWidth
+                                    label="Category"
+                                    name="category"
+                                    value={formData.category}
+                                    onChange={handleFormChange}
+                                    margin="normal"
+                                    helperText="e.g. Jerseys, Shorts, Accessories"
+                                    size={isMobile ? "small" : "medium"}
+                                />
+                            </Grid>
+                        </Grid>
+                        <TextField
+                            fullWidth
+                            label="Image URL"
+                            name="imageUrl"
+                            value={formData.imageUrl}
+                            onChange={handleFormChange}
+                            margin="normal"
+                            helperText="Direct image link"
+                            size={isMobile ? "small" : "medium"}
+                        />
+                        <TextField
+                            fullWidth
+                            label="Description"
+                            name="description"
+                            value={formData.description}
+                            onChange={handleFormChange}
+                            margin="normal"
+                            multiline
+                            rows={2}
+                            helperText="Optional product details"
                             size={isMobile ? "small" : "medium"}
                         />
                         <Grid container spacing={2}>

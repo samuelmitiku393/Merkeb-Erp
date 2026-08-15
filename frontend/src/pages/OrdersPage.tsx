@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
-import type { Order, OrderStatus, SnackbarState } from "../types";
+import type { Order, OrderStatus, SnackbarState, PaginatedOrders } from "../types";
+import { useAuth } from "../context/AuthContext";
 import {
     Box,
     Typography,
@@ -51,22 +52,29 @@ import {
     ChevronRight as ChevronRightIcon,
     Check as CheckIcon,
     LocationOn as LocationIcon,
-    Home as HomeIcon
+    Home as HomeIcon,
+    Cancel as CancelIcon,
+    NavigateNext as NavigateNextIcon,
+    NavigateBefore as NavigateBeforeIcon
 } from "@mui/icons-material";
 import API from "../api/axios";
 
-const statusColors: Record<OrderStatus, 'warning' | 'info' | 'primary' | 'success'> = {
+const statusColors: Record<OrderStatus, 'warning' | 'info' | 'primary' | 'success' | 'error' | 'default'> = {
     pending: "warning",
     confirmed: "info",
     shipped: "primary",
-    delivered: "success"
+    delivered: "success",
+    cancelled: "error",
+    refunded: "default"
 };
 
 const statusIcons: Record<OrderStatus, React.ReactElement> = {
     pending: <ReceiptIcon />,
     confirmed: <CheckCircleIcon />,
     shipped: <ShippingIcon />,
-    delivered: <InventoryIcon />
+    delivered: <InventoryIcon />,
+    cancelled: <CancelIcon />,
+    refunded: <CancelIcon />
 };
 
 type StatusAction = { next: OrderStatus; label: string; icon: React.ReactElement; color: 'info' | 'primary' | 'success' };
@@ -89,12 +97,16 @@ const statusActions: Record<OrderStatus, StatusAction | null> = {
         icon: <CheckIcon />,
         color: "success"
     },
-    delivered: null // No next action for delivered orders
+    delivered: null,
+    cancelled: null,
+    refunded: null
 };
 
 const OrdersPage = () => {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+    const { user } = useAuth();
+    const isAdmin = user?.role === 'admin';
 
     const [orders, setOrders] = useState<Order[]>([]);
     const [tab, setTab] = useState<OrderStatus>("pending");
@@ -113,11 +125,24 @@ const OrdersPage = () => {
     const [snackbar, setSnackbar] = useState<SnackbarState>({ open: false, message: "", severity: "success" });
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
-    const fetchOrders = async () => {
+    // Cancel order state
+    const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+    const [cancelReason, setCancelReason] = useState("");
+    const [cancellingOrder, setCancellingOrder] = useState<Order | null>(null);
+
+    // Pagination
+    const [page, setPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalCount, setTotalCount] = useState(0);
+    const PAGE_SIZE = 20;
+
+    const fetchOrders = async (currentPage = page, statusFilter = tab) => {
         setLoading(true);
         try {
-            const res = await API.get("/orders");
-            setOrders(res.data);
+            const res = await API.get<PaginatedOrders>(`/orders?page=${currentPage}&limit=${PAGE_SIZE}&status=${statusFilter}`);
+            setOrders(res.data.orders);
+            setTotalPages(res.data.pagination.totalPages);
+            setTotalCount(res.data.pagination.totalCount);
         } catch (error) {
             console.error("Error fetching orders:", error);
             showSnackbar("Error fetching orders", "error");
@@ -127,25 +152,23 @@ const OrdersPage = () => {
     };
 
     useEffect(() => {
-        fetchOrders();
-    }, []);
+        setPage(1);
+        fetchOrders(1, tab);
+    }, [tab]);
 
     const filteredOrders = useMemo(() => {
-        return orders.filter((o) => {
-            const matchesStatus = o.status === tab;
-            const matchesSearch =
-                search === "" ||
-                o.customer?.name?.toLowerCase().includes(search.toLowerCase()) ||
-                o.customer?.phone?.includes(search) ||
-                o.customer?.address?.toLowerCase().includes(search.toLowerCase()) ||
-                o.items?.some((i) =>
-                    (typeof i.product === 'object' && i.product !== null ? i.product.name : '')?.toLowerCase().includes(search.toLowerCase())
-                ) ||
-                o._id?.toLowerCase().includes(search.toLowerCase());
-
-            return matchesStatus && matchesSearch;
-        });
-    }, [orders, tab, search]);
+        if (!search) return orders;
+        const term = search.toLowerCase();
+        return orders.filter((o) =>
+            o.customer?.name?.toLowerCase().includes(term) ||
+            o.customer?.phone?.includes(search) ||
+            o.customer?.address?.toLowerCase().includes(term) ||
+            o.items?.some((i) =>
+                (typeof i.product === 'object' && i.product !== null ? i.product.name : '')?.toLowerCase().includes(term)
+            ) ||
+            o._id?.toLowerCase().includes(term)
+        );
+    }, [orders, search]);
 
     const updateStatus = async (id: string, status: OrderStatus) => {
         try {
@@ -156,6 +179,29 @@ const OrdersPage = () => {
             console.error("Error updating status:", error);
             showSnackbar("Error updating order status", "error");
         }
+    };
+
+    const cancelOrder = async () => {
+        if (!cancellingOrder) return;
+        try {
+            await API.post(`/orders/${cancellingOrder._id}/cancel`, { reason: cancelReason });
+            fetchOrders();
+            setCancelDialogOpen(false);
+            setCancelReason("");
+            setCancellingOrder(null);
+            setDetailsOpen(false);
+            showSnackbar("Order cancelled successfully", "success");
+        } catch (error: any) {
+            console.error("Error cancelling order:", error);
+            showSnackbar(error.response?.data?.message || "Error cancelling order", "error");
+        }
+    };
+
+    const handleCancelClick = (order: Order, e?: React.MouseEvent) => {
+        e?.stopPropagation();
+        setCancellingOrder(order);
+        setCancelReason("");
+        setCancelDialogOpen(true);
     };
 
     const updateOrder = async (id: string, updatedData: any) => {
@@ -190,20 +236,15 @@ const OrdersPage = () => {
 
     const nextStatus = (status: OrderStatus): OrderStatus | null => {
         switch (status) {
-            case "pending":
-                return "confirmed";
-            case "confirmed":
-                return "shipped";
-            case "shipped":
-                return "delivered";
-            default:
-                return null;
+            case "pending": return "confirmed";
+            case "confirmed": return "shipped";
+            case "shipped": return "delivered";
+            default: return null;
         }
     };
 
-    const getStatusCount = (status: OrderStatus): number => {
-        return orders.filter(o => o.status === status).length;
-    };
+    const getStatusCount = (status: OrderStatus): number =>
+        status === tab ? totalCount : 0;
 
     const handleOrderClick = (order: Order) => {
         setSelectedOrder(order);
@@ -325,12 +366,12 @@ const OrdersPage = () => {
                         }
                     }}
                 >
-                    {(['pending', 'confirmed', 'shipped', 'delivered'] as OrderStatus[]).map((status) => (
+                    {(['pending', 'confirmed', 'shipped', 'delivered', 'cancelled', 'refunded'] as OrderStatus[]).map((status) => (
                         <Tab
                             key={status}
                             label={
-                                <Badge badgeContent={getStatusCount(status)} color={statusColors[status]}>
-                                    <Box sx={{ px: 2, textTransform: 'capitalize' }}>
+                                <Badge badgeContent={status === tab ? totalCount : undefined} color={statusColors[status] as any}>
+                                    <Box sx={{ px: 1, textTransform: 'capitalize' }}>
                                         {status}
                                     </Box>
                                 </Badge>
@@ -712,8 +753,8 @@ const OrdersPage = () => {
                                 </Typography>
                             </Box>
 
-                            {/* Status Update */}
-                            {!editMode && nextStatus(selectedOrder.status) && (
+                            {/* Status Update — Admin only */}
+                            {!editMode && isAdmin && nextStatus(selectedOrder.status) && (
                                 <Box mt={2}>
                                     <Typography variant="subtitle2" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                         <ShippingIcon fontSize="small" />
@@ -732,18 +773,19 @@ const OrdersPage = () => {
                                             <MenuItem value="confirmed">Confirmed</MenuItem>
                                             <MenuItem value="shipped">Shipped</MenuItem>
                                             <MenuItem value="delivered">Delivered</MenuItem>
+                                            <MenuItem value="refunded">Refunded</MenuItem>
                                         </Select>
                                     </FormControl>
                                 </Box>
                             )}
                         </DialogContent>
-                        <DialogActions sx={{ px: { xs: 2, sm: 3 }, py: { xs: 1.5, sm: 2 } }}>
+                        <DialogActions sx={{ px: { xs: 2, sm: 3 }, py: { xs: 1.5, sm: 2 }, flexWrap: 'wrap', gap: 1 }}>
                             {editMode ? (
                                 <>
                                     <Button onClick={() => setEditMode(false)}>Cancel</Button>
-                                    <Button 
-                                        onClick={handleSaveEdit} 
-                                        variant="contained" 
+                                    <Button
+                                        onClick={handleSaveEdit}
+                                        variant="contained"
                                         color="primary"
                                         startIcon={<SaveIcon />}
                                     >
@@ -752,7 +794,8 @@ const OrdersPage = () => {
                                 </>
                             ) : (
                                 <>
-                                    {selectedOrder && selectedOrder.status && statusActions[selectedOrder.status] && (
+                                    {/* Admin-only: progress status */}
+                                    {isAdmin && selectedOrder && selectedOrder.status && statusActions[selectedOrder.status] && (
                                         <Button
                                             variant="contained"
                                             color={statusActions[selectedOrder.status]?.color}
@@ -767,12 +810,54 @@ const OrdersPage = () => {
                                             Mark as {statusActions[selectedOrder.status]?.next}
                                         </Button>
                                     )}
+                                    {/* Admin-only: cancel order */}
+                                    {isAdmin && selectedOrder &&
+                                        !['cancelled', 'delivered', 'refunded'].includes(selectedOrder.status) && (
+                                        <Button
+                                            variant="outlined"
+                                            color="error"
+                                            startIcon={<CancelIcon />}
+                                            onClick={() => handleCancelClick(selectedOrder)}
+                                        >
+                                            Cancel Order
+                                        </Button>
+                                    )}
                                     <Button onClick={() => setDetailsOpen(false)}>Close</Button>
                                 </>
                             )}
                         </DialogActions>
                     </>
                 )}
+            </Dialog>
+
+            {/* Cancel Order Dialog */}
+            <Dialog open={cancelDialogOpen} onClose={() => setCancelDialogOpen(false)} maxWidth="sm" fullWidth>
+                <DialogTitle sx={{ color: 'error.main' }}>
+                    <Box display="flex" alignItems="center" gap={1}>
+                        <CancelIcon />
+                        Cancel Order
+                    </Box>
+                </DialogTitle>
+                <DialogContent>
+                    <Typography variant="body2" color="text.secondary" mb={2}>
+                        Are you sure you want to cancel this order? Stock will be automatically restored.
+                    </Typography>
+                    <TextField
+                        fullWidth
+                        label="Cancellation Reason (optional)"
+                        multiline
+                        rows={3}
+                        value={cancelReason}
+                        onChange={(e) => setCancelReason(e.target.value)}
+                        placeholder="e.g. Customer requested cancellation"
+                    />
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setCancelDialogOpen(false)}>Keep Order</Button>
+                    <Button onClick={cancelOrder} color="error" variant="contained" startIcon={<CancelIcon />}>
+                        Yes, Cancel Order
+                    </Button>
+                </DialogActions>
             </Dialog>
 
             {/* Delete Confirmation Dialog */}
@@ -794,6 +879,33 @@ const OrdersPage = () => {
                     </Button>
                 </DialogActions>
             </Dialog>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+                <Box display="flex" justifyContent="center" alignItems="center" gap={2} mt={3}>
+                    <Button
+                        variant="outlined"
+                        size="small"
+                        disabled={page <= 1}
+                        onClick={() => { const p = page - 1; setPage(p); fetchOrders(p, tab); }}
+                        startIcon={<NavigateBeforeIcon />}
+                    >
+                        Previous
+                    </Button>
+                    <Typography variant="body2" color="text.secondary">
+                        Page {page} of {totalPages} ({totalCount} orders)
+                    </Typography>
+                    <Button
+                        variant="outlined"
+                        size="small"
+                        disabled={page >= totalPages}
+                        onClick={() => { const p = page + 1; setPage(p); fetchOrders(p, tab); }}
+                        endIcon={<NavigateNextIcon />}
+                    >
+                        Next
+                    </Button>
+                </Box>
+            )}
 
             {/* Snackbar */}
             <Snackbar

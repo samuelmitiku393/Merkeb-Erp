@@ -1,5 +1,25 @@
 import Order from "../models/Order.js";
 import Product from "../models/Product.js";
+import { notifyLowStock, notifyNewOrder } from "../services/notificationService.js";
+
+// Low-stock threshold for notifications
+const LOW_STOCK_THRESHOLD = 3;
+
+// Helper: check product sizes for low stock and fire notifications
+const checkAndNotifyLowStock = async (productId) => {
+  try {
+    const product = await Product.findById(productId);
+    if (!product) return;
+    for (const sizeObj of product.sizes) {
+      if (sizeObj.stock <= LOW_STOCK_THRESHOLD) {
+        // Fire-and-forget — don't block the response
+        notifyLowStock(product.name, sizeObj.size, sizeObj.stock).catch(() => {});
+      }
+    }
+  } catch {
+    // Non-critical — never block the main flow
+  }
+};
 
 // CREATE ORDER
 export const createOrder = async (req, res) => {
@@ -13,6 +33,7 @@ export const createOrder = async (req, res) => {
 
     let totalPrice = 0;
     const processedItems = [];
+    const affectedProductIds = [];
 
     for (let item of items) {
       // 1. Validate product exists
@@ -44,19 +65,18 @@ export const createOrder = async (req, res) => {
       }
 
       // 3. SECURE pricing (never trust frontend)
-      const productPrice = product.price;
-
       const orderItem = {
         product: item.product,
         size: item.size,
         quantity: item.quantity,
-        price: productPrice
+        price: product.price
       };
 
       processedItems.push(orderItem);
+      affectedProductIds.push(item.product);
 
       // 4. Calculate total safely
-      totalPrice += productPrice * item.quantity;
+      totalPrice += product.price * item.quantity;
     }
 
     // 5. Create order
@@ -69,6 +89,13 @@ export const createOrder = async (req, res) => {
     });
 
     const savedOrder = await order.save();
+    const populatedOrder = await Order.findById(savedOrder._id)
+      .populate("customer")
+      .populate("items.product");
+
+    // 6. Fire Telegram notifications (non-blocking)
+    notifyNewOrder(populatedOrder).catch(() => {});
+    affectedProductIds.forEach((id) => checkAndNotifyLowStock(id));
 
     res.status(201).json(savedOrder);
 
@@ -80,15 +107,54 @@ export const createOrder = async (req, res) => {
   }
 };
 
-// GET ALL ORDERS
+// GET ALL ORDERS — with pagination and optional status filter
 export const getOrders = async (req, res) => {
   try {
-    const orders = await Order.find()
-      .populate("customer")
-      .populate("items.product")
-      .sort({ createdAt: -1 });
+    const {
+      page = 1,
+      limit = 20,
+      status,
+      search
+    } = req.query;
 
-    res.json(orders);
+    const pageNum = Math.max(1, parseInt(page));
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
+
+    const query = {};
+    if (status) query.status = status;
+
+    // Build the aggregated list and total count in parallel
+    const [orders, totalCount] = await Promise.all([
+      Order.find(query)
+        .populate("customer")
+        .populate("items.product")
+        .sort({ createdAt: -1 })
+        .skip((pageNum - 1) * limitNum)
+        .limit(limitNum),
+      Order.countDocuments(query)
+    ]);
+
+    // Optional: filter by customer name/phone in memory (small datasets)
+    // For large datasets this should be moved to a DB text index
+    let filtered = orders;
+    if (search) {
+      const term = search.toLowerCase();
+      filtered = orders.filter(
+        (o) =>
+          o.customer?.name?.toLowerCase().includes(term) ||
+          o.customer?.phone?.toLowerCase().includes(term)
+      );
+    }
+
+    res.json({
+      orders: filtered,
+      pagination: {
+        currentPage: pageNum,
+        totalPages: Math.ceil(totalCount / limitNum),
+        totalCount,
+        limit: limitNum
+      }
+    });
   } catch (error) {
     res.status(500).json({
       message: "Error fetching orders",
@@ -96,9 +162,16 @@ export const getOrders = async (req, res) => {
     });
   }
 };
+
+// UPDATE ORDER STATUS
 export const updateOrderStatus = async (req, res) => {
   try {
     const { status } = req.body;
+
+    const validStatuses = ["pending", "confirmed", "shipped", "delivered", "cancelled", "refunded"];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ message: `Invalid status: ${status}` });
+    }
 
     const order = await Order.findById(req.params.id);
 
@@ -107,6 +180,16 @@ export const updateOrderStatus = async (req, res) => {
     }
 
     order.status = status;
+
+    // Keep paymentStatus and deliveryStatus in sync when possible
+    if (status === "delivered") {
+      order.deliveryStatus = "delivered";
+    } else if (status === "shipped") {
+      order.deliveryStatus = "shipped";
+    } else if (status === "refunded") {
+      order.paymentStatus = "refunded";
+    }
+
     await order.save();
 
     res.json(order);
@@ -115,6 +198,51 @@ export const updateOrderStatus = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// CANCEL ORDER — restores stock, records cancellation reason
+export const cancelOrder = async (req, res) => {
+  try {
+    const { reason = "" } = req.body;
+
+    const order = await Order.findById(req.params.id);
+
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    if (order.status === "cancelled") {
+      return res.status(400).json({ message: "Order is already cancelled" });
+    }
+
+    if (order.status === "delivered") {
+      return res.status(400).json({
+        message: "Cannot cancel a delivered order. Use refund instead."
+      });
+    }
+
+    // Restore stock for all items
+    for (const item of order.items) {
+      await Product.findOneAndUpdate(
+        { _id: item.product, "sizes.size": item.size },
+        { $inc: { "sizes.$.stock": item.quantity } }
+      );
+    }
+
+    order.status = "cancelled";
+    order.cancelledAt = new Date();
+    order.cancellationReason = reason;
+    await order.save();
+
+    res.json({ message: "Order cancelled successfully", order });
+
+  } catch (error) {
+    res.status(500).json({
+      message: "Error cancelling order",
+      error: error.message
+    });
+  }
+};
+
 // UPDATE ORDER - Full order update
 export const updateOrder = async (req, res) => {
   try {
@@ -133,7 +261,7 @@ export const updateOrder = async (req, res) => {
     if (items && items.length > 0) {
       for (let item of items) {
         const product = await Product.findById(item.product);
-        
+
         if (!product) {
           return res.status(404).json({
             message: `Product not found: ${item.product}`
@@ -142,20 +270,16 @@ export const updateOrder = async (req, res) => {
 
         // Find the existing item in the order to calculate stock difference
         const existingItem = order.items.find(
-          i => i.product.toString() === item.product && i.size === item.size
+          (i) => i.product.toString() === item.product && i.size === item.size
         );
 
         let stockChange = 0;
         if (existingItem) {
-          // If quantity decreased, stock increases (positive change)
-          // If quantity increased, stock decreases (negative change)
           stockChange = existingItem.quantity - item.quantity;
         } else {
-          // New item - decrease stock
           stockChange = -item.quantity;
         }
 
-        // Update stock if needed
         if (stockChange !== 0) {
           const updatedProduct = await Product.findOneAndUpdate(
             {
@@ -163,9 +287,7 @@ export const updateOrder = async (req, res) => {
               "sizes.size": item.size,
               "sizes.stock": { $gte: stockChange > 0 ? 0 : -stockChange }
             },
-            {
-              $inc: { "sizes.$.stock": stockChange }
-            },
+            { $inc: { "sizes.$.stock": stockChange } },
             { new: true }
           );
 
@@ -187,18 +309,16 @@ export const updateOrder = async (req, res) => {
         totalPrice += product.price * item.quantity;
       }
     } else {
-      // If no items provided, keep existing items
       processedItems.push(...order.items);
       totalPrice = order.totalPrice;
     }
 
-    // Update order
     const updatedOrder = await Order.findByIdAndUpdate(
       req.params.id,
       {
         customer: customer || order.customer,
         items: processedItems,
-        totalPrice: totalPrice
+        totalPrice
       },
       { new: true }
     ).populate("customer").populate("items.product");
@@ -222,17 +342,14 @@ export const deleteOrder = async (req, res) => {
       return res.status(404).json({ message: "Order not found" });
     }
 
-    // Restore stock for all items in the order
-    for (let item of order.items) {
-      await Product.findOneAndUpdate(
-        {
-          _id: item.product,
-          "sizes.size": item.size
-        },
-        {
-          $inc: { "sizes.$.stock": item.quantity }
-        }
-      );
+    // Only restore stock if not already cancelled (stock was already restored on cancel)
+    if (order.status !== "cancelled") {
+      for (const item of order.items) {
+        await Product.findOneAndUpdate(
+          { _id: item.product, "sizes.size": item.size },
+          { $inc: { "sizes.$.stock": item.quantity } }
+        );
+      }
     }
 
     await Order.findByIdAndDelete(req.params.id);
