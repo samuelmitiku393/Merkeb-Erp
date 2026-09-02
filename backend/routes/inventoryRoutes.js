@@ -8,12 +8,30 @@ import {
     updateProduct, 
     deleteProduct, 
     updateStock, 
-    bulkUpdateStock 
+    bulkUpdateStock,
+    importProducts,
+    downloadProductTemplate
 } from "../controllers/inventoryController.js";
 import { authenticateToken, authorizeRoles } from "../middleware/auth.js";
 import { auditLog } from "../middleware/auditMiddleware.js";
+import upload from "../middleware/upload.js";
 
 const router = express.Router();
+
+// Download Product import Excel template - requires authentication
+router.get("/import-template",
+    authenticateToken,
+    downloadProductTemplate
+);
+
+// Bulk Import products via Excel / CSV - requires authentication & admin role
+router.post("/import",
+    authenticateToken,
+    authorizeRoles("admin"),
+    upload.single("file"),
+    auditLog('CREATE', 'INVENTORY', 'Bulk products import performed'),
+    importProducts
+);
 
 // Get low stock items - requires authentication
 router.get("/low-stock", 

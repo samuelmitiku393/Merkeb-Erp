@@ -1,5 +1,6 @@
 import Customer from "../models/Customer.js";
 import Order from "../models/Order.js";
+import ExcelJS from "exceljs";
 
 // CREATE CUSTOMER
 export const createCustomer = async (req, res) => {
@@ -158,5 +159,158 @@ export const deleteCustomer = async (req, res) => {
     res.json({ message: "Customer deleted successfully" });
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+};
+
+// DOWNLOAD CUSTOMER IMPORT TEMPLATE (.xlsx)
+export const downloadCustomerTemplate = async (req, res) => {
+  try {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Customer Import Template");
+
+    worksheet.columns = [
+      { header: "Name *", key: "name", width: 25 },
+      { header: "Phone Number *", key: "phone", width: 20 },
+      { header: "Address", key: "address", width: 30 },
+      { header: "Instagram Handle", key: "instagramHandle", width: 22 },
+      { header: "Notes", key: "notes", width: 30 }
+    ];
+
+    // Header styling
+    const headerRow = worksheet.getRow(1);
+    headerRow.font = { bold: true, color: { argb: "FFFFFF" } };
+    headerRow.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "2E7D32" } // Green header
+    };
+    headerRow.alignment = { vertical: "middle", horizontal: "center" };
+
+    // Sample rows
+    worksheet.addRow({
+      name: "Abebe Bikila",
+      phone: "+251911223344",
+      address: "Bole Medhanialem, Addis Ababa",
+      instagramHandle: "@abebe_b",
+      notes: "VIP customer - prefers morning delivery"
+    });
+
+    worksheet.addRow({
+      name: "Tigist Assefa",
+      phone: "+251922334455",
+      address: "Kazanchis, Addis Ababa",
+      instagramHandle: "@tigist_a",
+      notes: "Referred by social media"
+    });
+
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.setHeader(
+      "Content-Disposition",
+      'attachment; filename="Merkeb_Customer_Import_Template.xlsx"'
+    );
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    console.error("Customer template download error:", error);
+    res.status(500).json({ message: "Failed to generate customer template" });
+  }
+};
+
+// BULK IMPORT CUSTOMERS (Excel / CSV)
+export const importCustomers = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "Please upload an Excel or CSV file" });
+    }
+
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(req.file.buffer);
+
+    const worksheet = workbook.worksheets[0];
+    if (!worksheet) {
+      return res.status(400).json({ message: "Workbook contains no worksheets" });
+    }
+
+    const rows = [];
+    worksheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return; // Skip header row
+      const values = row.values;
+      rows.push({
+        rowNumber,
+        name: values[1] ? String(values[1]).trim() : "",
+        phone: values[2] ? String(values[2]).trim() : "",
+        address: values[3] ? String(values[3]).trim() : "",
+        instagramHandle: values[4] ? String(values[4]).trim() : "",
+        notes: values[5] ? String(values[5]).trim() : ""
+      });
+    });
+
+    if (rows.length === 0) {
+      return res.status(400).json({ message: "No data rows found in uploaded file" });
+    }
+
+    let importedCount = 0;
+    let updatedCount = 0;
+    const errors = [];
+
+    for (const data of rows) {
+      if (!data.name) {
+        errors.push({ row: data.rowNumber, error: "Missing required Name" });
+        continue;
+      }
+      if (!data.phone) {
+        errors.push({ row: data.rowNumber, name: data.name, error: "Missing required Phone number" });
+        continue;
+      }
+
+      try {
+        // Check for existing customer by Phone or Instagram
+        const query = [{ phone: data.phone }];
+        if (data.instagramHandle) {
+          query.push({ instagramHandle: data.instagramHandle });
+        }
+
+        let existingCustomer = await Customer.findOne({ $or: query });
+
+        if (existingCustomer) {
+          existingCustomer.name = data.name;
+          if (data.address) existingCustomer.address = data.address;
+          if (data.instagramHandle) existingCustomer.instagramHandle = data.instagramHandle;
+          if (data.notes) existingCustomer.notes = data.notes;
+
+          await existingCustomer.save();
+          updatedCount++;
+        } else {
+          const newCustomer = new Customer({
+            name: data.name,
+            phone: data.phone,
+            address: data.address,
+            instagramHandle: data.instagramHandle,
+            notes: data.notes
+          });
+          await newCustomer.save();
+          importedCount++;
+        }
+      } catch (err) {
+        errors.push({ row: data.rowNumber, customer: data.name, error: err.message });
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Customers import processed: ${importedCount} created, ${updatedCount} updated, ${errors.length} skipped`,
+      totalRows: rows.length,
+      importedCount,
+      updatedCount,
+      skippedCount: errors.length,
+      errors
+    });
+  } catch (error) {
+    console.error("Bulk import customers error:", error);
+    res.status(500).json({ message: "Failed to process customer import file", error: error.message });
   }
 };

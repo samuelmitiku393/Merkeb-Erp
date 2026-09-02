@@ -1,5 +1,6 @@
 import Product from "../models/Product.js";
 import Order from "../models/Order.js";
+import ExcelJS from "exceljs";
 
 const LOW_STOCK_THRESHOLD = 3;
 
@@ -264,5 +265,215 @@ export const bulkUpdateStock = async (req, res) => {
         });
     } catch (error) {
         res.status(400).json({ message: error.message });
+    }
+};
+
+// DOWNLOAD PRODUCT IMPORT TEMPLATE (.xlsx)
+export const downloadProductTemplate = async (req, res) => {
+    try {
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet("Product Import Template");
+
+        worksheet.columns = [
+            { header: "Name *", key: "name", width: 25 },
+            { header: "SKU", key: "sku", width: 15 },
+            { header: "Category", key: "category", width: 18 },
+            { header: "Team / Brand", key: "team", width: 18 },
+            { header: "Selling Price *", key: "price", width: 15 },
+            { header: "Cost Price *", key: "costPrice", width: 15 },
+            { header: "Sizes & Stock (e.g. S:10, M:15, L:5)", key: "sizes", width: 35 },
+            { header: "Description", key: "description", width: 30 },
+            { header: "Image URL", key: "imageUrl", width: 30 }
+        ];
+
+        // Format Header Row
+        const headerRow = worksheet.getRow(1);
+        headerRow.font = { bold: true, color: { argb: "FFFFFF" } };
+        headerRow.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: "1E88E5" }
+        };
+        headerRow.alignment = { vertical: "middle", horizontal: "center" };
+
+        // Add Sample Rows
+        worksheet.addRow({
+            name: "Home Jersey 2026",
+            sku: "JER-2026-H",
+            category: "Jerseys",
+            team: "Arsenal",
+            price: 2500,
+            costPrice: 1800,
+            sizes: "S:10, M:15, L:20, XL:5",
+            description: "Official 2026 Arsenal Home Kit",
+            imageUrl: "https://example.com/jersey.jpg"
+        });
+
+        worksheet.addRow({
+            name: "Training Tracksuit",
+            sku: "TRK-2026-B",
+            category: "Sportswear",
+            team: "Real Madrid",
+            price: 3500,
+            costPrice: 2400,
+            sizes: "M:8, L:12, XL:6",
+            description: "Full zip breathable tracksuit",
+            imageUrl: ""
+        });
+
+        res.setHeader(
+            "Content-Type",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        );
+        res.setHeader(
+            "Content-Disposition",
+            'attachment; filename="Merkeb_Product_Import_Template.xlsx"'
+        );
+
+        await workbook.xlsx.write(res);
+        res.end();
+    } catch (error) {
+        console.error("Template download error:", error);
+        res.status(500).json({ message: "Failed to generate template" });
+    }
+};
+
+// BULK IMPORT PRODUCTS (Excel / CSV)
+export const importProducts = async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ message: "Please upload an Excel or CSV file" });
+        }
+
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(req.file.buffer);
+
+        const worksheet = workbook.worksheets[0];
+        if (!worksheet) {
+            return res.status(400).json({ message: "Workbook contains no worksheets" });
+        }
+
+        const rows = [];
+        worksheet.eachRow((row, rowNumber) => {
+            if (rowNumber === 1) return; // Skip header row
+            const values = row.values;
+            // row.values is 1-indexed in ExcelJS
+            rows.push({
+                rowNumber,
+                name: values[1] ? String(values[1]).trim() : "",
+                sku: values[2] ? String(values[2]).trim() : "",
+                category: values[3] ? String(values[3]).trim() : "",
+                team: values[4] ? String(values[4]).trim() : "",
+                price: parseFloat(values[5]) || 0,
+                costPrice: parseFloat(values[6]) || 0,
+                sizesStr: values[7] ? String(values[7]).trim() : "",
+                description: values[8] ? String(values[8]).trim() : "",
+                imageUrl: values[9] ? String(values[9]).trim() : ""
+            });
+        });
+
+        if (rows.length === 0) {
+            return res.status(400).json({ message: "No data rows found in uploaded file" });
+        }
+
+        let importedCount = 0;
+        let updatedCount = 0;
+        const errors = [];
+
+        for (const data of rows) {
+            // Validation
+            if (!data.name) {
+                errors.push({ row: data.rowNumber, error: "Missing required Product Name" });
+                continue;
+            }
+            if (!data.costPrice && data.costPrice !== 0) {
+                errors.push({ row: data.rowNumber, error: `Row ${data.rowNumber}: Cost price is required` });
+                continue;
+            }
+
+            // Parse Sizes string (e.g. "S:10, M:15, L:5" or "Standard:20")
+            const sizesArr = [];
+            if (data.sizesStr) {
+                const parts = data.sizesStr.split(",");
+                for (const part of parts) {
+                    const [sizeName, stockVal] = part.split(":");
+                    if (sizeName && sizeName.trim()) {
+                        sizesArr.push({
+                            size: sizeName.trim(),
+                            stock: parseInt(stockVal) || 0
+                        });
+                    }
+                }
+            }
+
+            // Fallback if no sizes specified
+            if (sizesArr.length === 0) {
+                sizesArr.push({ size: "Standard", stock: 0 });
+            }
+
+            try {
+                // Check if product exists by SKU or exact Name
+                let existingProduct = null;
+                if (data.sku) {
+                    existingProduct = await Product.findOne({ sku: data.sku });
+                }
+                if (!existingProduct) {
+                    existingProduct = await Product.findOne({ name: data.name });
+                }
+
+                if (existingProduct) {
+                    // Update existing product
+                    existingProduct.price = data.price || existingProduct.price;
+                    existingProduct.costPrice = data.costPrice ?? existingProduct.costPrice;
+                    if (data.category) existingProduct.category = data.category;
+                    if (data.team) existingProduct.team = data.team;
+                    if (data.description) existingProduct.description = data.description;
+                    if (data.imageUrl) existingProduct.imageUrl = data.imageUrl;
+
+                    // Merge sizes
+                    for (const newSize of sizesArr) {
+                        const idx = existingProduct.sizes.findIndex(s => s.size.toLowerCase() === newSize.size.toLowerCase());
+                        if (idx >= 0) {
+                            existingProduct.sizes[idx].stock = newSize.stock;
+                        } else {
+                            existingProduct.sizes.push(newSize);
+                        }
+                    }
+
+                    await existingProduct.save();
+                    updatedCount++;
+                } else {
+                    // Create new product
+                    const newProd = new Product({
+                        name: data.name,
+                        sku: data.sku,
+                        category: data.category,
+                        team: data.team,
+                        price: data.price,
+                        costPrice: data.costPrice,
+                        description: data.description,
+                        imageUrl: data.imageUrl,
+                        sizes: sizesArr
+                    });
+                    await newProd.save();
+                    importedCount++;
+                }
+            } catch (err) {
+                errors.push({ row: data.rowNumber, product: data.name, error: err.message });
+            }
+        }
+
+        res.json({
+            success: true,
+            message: `Import processed: ${importedCount} created, ${updatedCount} updated, ${errors.length} skipped`,
+            totalRows: rows.length,
+            importedCount,
+            updatedCount,
+            skippedCount: errors.length,
+            errors
+        });
+    } catch (error) {
+        console.error("Bulk import products error:", error);
+        res.status(500).json({ message: "Failed to process import file", error: error.message });
     }
 };

@@ -52,12 +52,14 @@ import {
     Menu as MenuIcon,
     FilterList as FilterIcon,
     Close as CloseIcon,
-    MoreVert as MoreVertIcon
+    MoreVert as MoreVertIcon,
+    FileUpload as UploadIcon
 } from "@mui/icons-material";
 import API from "../api/axios";
 import type { Product, LowStockItem, RestockSuggestion, ProductSize, PaginatedProducts } from "../types";
 import type { ChipProps } from "@mui/material";
 import { useAuth } from "../context/AuthContext";
+import BulkImportModal from "../components/BulkImportModal";
 
 interface ProductFormData {
     name: string;
@@ -89,6 +91,7 @@ const Inventory = () => {
     const [editingProduct, setEditingProduct] = useState<Product | null>(null);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
+    const [importModalOpen, setImportModalOpen] = useState(false);
     const [formData, setFormData] = useState<ProductFormData>({
         name: "",
         team: "",
@@ -597,6 +600,16 @@ const Inventory = () => {
                             >
                                 Add Product
                             </Button>
+                            {isAdmin && (
+                                <Button
+                                    variant="outlined"
+                                    color="primary"
+                                    startIcon={<UploadIcon />}
+                                    onClick={() => setImportModalOpen(true)}
+                                >
+                                    Bulk Import
+                                </Button>
+                            )}
                             <Button
                                 variant="outlined"
                                 startIcon={<RefreshIcon />}
@@ -1128,6 +1141,19 @@ const Inventory = () => {
                     </Button>
                 </DialogActions>
             </Dialog>
+            {/* Bulk Import Modal */}
+            <BulkImportModal
+                open={importModalOpen}
+                onClose={() => setImportModalOpen(false)}
+                title="Bulk Import Products"
+                templateEndpoint="/inventory/import-template"
+                importEndpoint="/inventory/import"
+                onSuccess={() => {
+                    fetchProducts();
+                    fetchLowStockItems();
+                    fetchRestockSuggestions();
+                }}
+            />
         </Box>
     );
 };

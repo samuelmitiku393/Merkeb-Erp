@@ -13,6 +13,9 @@ import notificationRoutes from "./routes/notificationRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import auditRoutes from "./routes/auditRoutes.js"
 import reportRoutes from "./routes/reportRoutes.js";
+import adminRoutes from "./routes/adminRoutes.js";
+import { getSystemHealth } from "./controllers/healthController.js";
+import { startBackupScheduler } from "./services/backupScheduler.js";
 import { authenticateToken } from "./middleware/auth.js";
 import fs from "fs";
 import path from "path";
@@ -181,15 +184,8 @@ app.get("/", (req, res) => {
 });
 
 // Health check endpoint (accessible with or without /api prefix)
-const handleHealth = (req, res) => {
-  res.json({
-    status: "OK",
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
-  });
-};
-app.get("/api/health", handleHealth);
-app.get("/health", handleHealth);
+app.get("/api/health", getSystemHealth);
+app.get("/health", getSystemHealth);
 
 // Auth routes (public - accessible with or without /api prefix)
 app.use("/api/auth", authRoutes);
@@ -208,6 +204,7 @@ app.use(["/api/inventory", "/inventory"], inventoryRoutes);
 app.use(["/api/notifications", "/notifications"], notificationRoutes);
 app.use(["/api/reports", "/reports"], reportRoutes);
 app.use(["/api/audit", "/audit"], auditRoutes);
+app.use(["/api/admin", "/admin"], adminRoutes);
 
 // Get current user info (protected)
 const handleMe = (req, res) => {
@@ -352,6 +349,9 @@ const server = app.listen(PORT, () => {
   console.log('\x1b[33m%s\x1b[0m', `✓ Authentication: ${process.env.JWT_SECRET ? 'ENABLED' : 'DISABLED - Set JWT_SECRET in .env'}`);
   console.log('\x1b[33m%s\x1b[0m', `✓ Telegram Mini App: ${process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_BOT_TOKEN !== 'your-telegram-bot-token-here' ? 'ENABLED' : 'DISABLED - Set TELEGRAM_BOT_TOKEN in .env'}`);
   console.log('='.repeat(80) + '\n');
+
+  // Initialize automated backup scheduler
+  startBackupScheduler();
 });
 
 // Handle server errors

@@ -48,11 +48,13 @@ import {
   Save as SaveIcon,
   ShoppingBag as ShoppingBagIcon,
   AttachMoney as MoneyIcon,
-  Notes as NotesIcon
+  Notes as NotesIcon,
+  FileUpload as UploadIcon
 } from "@mui/icons-material";
 import API from "../api/axios";
 import { useAuth } from "../context/AuthContext";
 import type { Customer, Order } from "../types";
+import BulkImportModal from "../components/BulkImportModal";
 
 interface EnrichedCustomer extends Customer {
   totalOrders?: number;
@@ -93,6 +95,7 @@ const CustomersPage = () => {
   // Selected Customer Drawer
   const [selectedCustomer, setSelectedCustomer] = useState<EnrichedCustomer | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [importModalOpen, setImportModalOpen] = useState(false);
 
   // Snackbar
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" as "success" | "error" });
@@ -215,14 +218,27 @@ const CustomersPage = () => {
             Manage your customer profiles, purchase metrics, and notes
           </Typography>
         </Box>
-        <Button
-          variant="contained"
-          startIcon={<PersonAddIcon />}
-          onClick={() => handleOpenDialog()}
-          size={isMobile ? "small" : "medium"}
-        >
-          Add Customer
-        </Button>
+        <Stack direction="row" spacing={1}>
+          <Button
+            variant="contained"
+            startIcon={<PersonAddIcon />}
+            onClick={() => handleOpenDialog()}
+            size={isMobile ? "small" : "medium"}
+          >
+            Add Customer
+          </Button>
+          {isAdmin && (
+            <Button
+              variant="outlined"
+              color="primary"
+              startIcon={<UploadIcon />}
+              onClick={() => setImportModalOpen(true)}
+              size={isMobile ? "small" : "medium"}
+            >
+              Bulk Import
+            </Button>
+          )}
+        </Stack>
       </Box>
 
       {/* Overview Metric Cards */}
@@ -472,6 +488,16 @@ const CustomersPage = () => {
       >
         <Alert severity={snackbar.severity}>{snackbar.message}</Alert>
       </Snackbar>
+
+      {/* Bulk Import Modal */}
+      <BulkImportModal
+        open={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
+        title="Bulk Import Customers"
+        templateEndpoint="/customers/import-template"
+        importEndpoint="/customers/import"
+        onSuccess={fetchCustomers}
+      />
     </Box>
   );
 };
