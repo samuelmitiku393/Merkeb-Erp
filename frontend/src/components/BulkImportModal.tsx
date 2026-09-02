@@ -87,13 +87,13 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
 
       // Get Telegram WebApp user ID if available
       const tgChatId = (window as any).Telegram?.WebApp?.initDataUnsafe?.user?.id;
-      const headers: Record<string, string> = {};
+      const params: Record<string, string> = {};
       if (tgChatId) {
-        headers["x-telegram-chat-id"] = String(tgChatId);
+        params.chatId = String(tgChatId);
       }
 
       const response = await API.get(templateEndpoint, {
-        headers,
+        params,
         responseType: "blob",
       });
 
