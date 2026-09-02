@@ -217,14 +217,14 @@ export const downloadCustomerTemplate = async (req, res) => {
       }
     }
 
-    // Send via Telegram Bot DM if chatId is available
+    // Send via Telegram Bot DM asynchronously if chatId is available (non-blocking)
     if (chatId) {
-      await sendTelegramDocument(
+      sendTelegramDocument(
         chatId,
         buffer,
         filename,
         "👥 *Merkeb ERP — Customer Import Template*\nUse this Excel sheet to bulk import customer records."
-      );
+      ).catch(err => console.error("Telegram document error:", err.message));
     }
 
     res.setHeader(

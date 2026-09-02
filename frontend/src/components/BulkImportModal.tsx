@@ -109,10 +109,22 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
 
-      setTelegramNotice("📥 Excel template generated! Sent to your Telegram DM & browser download.");
-    } catch (err) {
+      setTelegramNotice("📥 Excel template generated! Downloading in browser...");
+    } catch (err: any) {
       console.error("Template download error:", err);
-      setErrorMsg("Failed to download template file");
+      let msg = "Failed to download template file";
+      if (err.response?.data instanceof Blob) {
+        try {
+          const text = await err.response.data.text();
+          const json = JSON.parse(text);
+          msg = json.message || msg;
+        } catch {
+          // Keep default msg if not JSON
+        }
+      } else if (err.response?.data?.message) {
+        msg = err.response.data.message;
+      }
+      setErrorMsg(msg);
     } finally {
       setDownloadingTemplate(false);
     }
