@@ -7,52 +7,48 @@ import {
   cancelOrder,
   deleteOrder
 } from "../controllers/orderController.js";
-import { authenticateToken, authorizeRoles } from "../middleware/auth.js";
+import { authenticateToken } from "../middleware/auth.js";
 import { auditLog } from "../middleware/auditMiddleware.js";
 
 const router = express.Router();
 
-// Create order - requires authentication
+// Create order
 router.post("/",
   authenticateToken,
   auditLog('CREATE', 'ORDER', 'New order created'),
   createOrder
 );
 
-// Get all orders - requires authentication (supports ?page=&limit=&status=)
+// Get all orders
 router.get("/",
   authenticateToken,
   getOrders
 );
 
-// Update order status - requires authentication and admin role
+// Update order status
 router.put("/:id/status",
   authenticateToken,
-  authorizeRoles("admin"),
   auditLog('UPDATE', 'ORDER', 'Order status updated'),
   updateOrderStatus
 );
 
-// Cancel order - requires authentication and admin role (restores stock)
+// Cancel order
 router.post("/:id/cancel",
   authenticateToken,
-  authorizeRoles("admin"),
   auditLog('UPDATE', 'ORDER', 'Order cancelled'),
   cancelOrder
 );
 
-// Update order - requires authentication and admin role
+// Update order
 router.put("/:id",
   authenticateToken,
-  authorizeRoles("admin"),
   auditLog('UPDATE', 'ORDER', 'Order updated'),
   updateOrder
 );
 
-// Delete order - requires authentication and admin role
+// Delete order
 router.delete("/:id",
   authenticateToken,
-  authorizeRoles("admin"),
   auditLog('DELETE', 'ORDER', 'Order deleted'),
   deleteOrder
 );

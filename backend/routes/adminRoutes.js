@@ -1,15 +1,14 @@
 import express from "express";
-import { authenticateToken, authorizeRoles } from "../middleware/auth.js";
+import { authenticateToken } from "../middleware/auth.js";
 import { createBackup, listBackups } from "../services/backupService.js";
 import { auditLog } from "../middleware/auditMiddleware.js";
 
 const router = express.Router();
 
-// Trigger manual backup (Admin only)
+// Trigger manual backup
 router.post(
   "/backup",
   authenticateToken,
-  authorizeRoles("admin"),
   auditLog("CREATE", "SETTINGS", "Manual database backup triggered"),
   async (req, res) => {
     try {
@@ -30,11 +29,10 @@ router.post(
   }
 );
 
-// List existing backups (Admin only)
+// List existing backups
 router.get(
   "/backups",
   authenticateToken,
-  authorizeRoles("admin"),
   async (req, res) => {
     try {
       const backups = listBackups();

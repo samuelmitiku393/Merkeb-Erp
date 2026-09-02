@@ -75,7 +75,6 @@ const CustomersPage = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const { user } = useAuth();
-  const isAdmin = user?.role === "admin";
 
   const [customers, setCustomers] = useState<EnrichedCustomer[]>([]);
   const [search, setSearch] = useState("");
@@ -227,17 +226,15 @@ const CustomersPage = () => {
           >
             Add Customer
           </Button>
-          {isAdmin && (
-            <Button
-              variant="outlined"
-              color="primary"
-              startIcon={<UploadIcon />}
-              onClick={() => setImportModalOpen(true)}
-              size={isMobile ? "small" : "medium"}
-            >
-              Bulk Import
-            </Button>
-          )}
+          <Button
+            variant="outlined"
+            color="primary"
+            startIcon={<UploadIcon />}
+            onClick={() => setImportModalOpen(true)}
+            size={isMobile ? "small" : "medium"}
+          >
+            Bulk Import
+          </Button>
         </Stack>
       </Box>
 
@@ -360,15 +357,13 @@ const CustomersPage = () => {
                     >
                       <EditIcon fontSize="small" />
                     </IconButton>
-                    {isAdmin && (
-                      <IconButton
-                        size="small"
-                        color="error"
-                        onClick={(e) => handleDeleteCustomer(customer._id, e)}
-                      >
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    )}
+                    <IconButton
+                      size="small"
+                      color="error"
+                      onClick={(e) => handleDeleteCustomer(customer._id, e)}
+                    >
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
                   </TableCell>
                 </TableRow>
               ))}

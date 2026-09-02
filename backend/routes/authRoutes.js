@@ -328,30 +328,10 @@ router.post("/login", apiLimiter, async (req, res, next) => {
   }
 });
 
-// Register - First registered user automatically becomes admin; subsequent registrations require admin auth
+// Register - create new user
 router.post("/register", apiLimiter, async (req, res, next) => {
     try {
       const userCount = await User.countDocuments();
-
-      // If database already has users, enforce admin authentication
-      if (userCount > 0) {
-        const authHeader = req.headers["authorization"];
-        const token = authHeader && authHeader.split(" ")[1];
-
-        if (!token) {
-          return res.status(401).json({ message: "Authentication required to register new users" });
-        }
-
-        try {
-          const decoded = jwt.verify(token, process.env.JWT_SECRET);
-          if (decoded.role !== "admin") {
-            return res.status(403).json({ message: "Only administrators can create new users" });
-          }
-          req.user = decoded;
-        } catch {
-          return res.status(401).json({ message: "Invalid or expired token" });
-        }
-      }
 
       const { username, password, role } = req.body;
 
@@ -395,8 +375,8 @@ router.post("/register", apiLimiter, async (req, res, next) => {
     }
 });
 
-// Batch user registration - Requires authentication and admin role
-router.post("/register/batch", apiLimiter, authenticateToken, authorizeRoles("admin"), auditLog('CREATE', 'USER', 'Batch user registration'), async (req, res, next) => {
+// Batch user registration - Requires authentication
+router.post("/register/batch", apiLimiter, authenticateToken, auditLog('CREATE', 'USER', 'Batch user registration'), async (req, res, next) => {
     try {
       const { users } = req.body;
 

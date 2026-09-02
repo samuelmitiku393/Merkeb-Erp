@@ -78,7 +78,6 @@ const Inventory = () => {
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const isTablet = useMediaQuery(theme.breakpoints.down('md'));
     const { user } = useAuth();
-    const isAdmin = user?.role === 'admin';
 
     const [products, setProducts] = useState<Product[]>([]);
     const [lowStockItems, setLowStockItems] = useState<LowStockItem[]>([]);
@@ -568,61 +567,39 @@ const Inventory = () => {
                 <Stack
                     direction="row"
                     spacing={1}
-                    justifyContent={{ xs: 'space-between', sm: 'flex-end' }}
+                    flexWrap="wrap"
+                    useFlexGap
+                    justifyContent={{ xs: 'flex-start', sm: 'flex-end' }}
                 >
-                    {isMobile ? (
-                        <>
-                            <Button
-                                variant="contained"
-                                startIcon={<AddIcon />}
-                                onClick={() => handleOpenDialog()}
-                                fullWidth
-                            >
-                                Add Product
-                            </Button>
-                            <IconButton
-                                onClick={() => {
-                                    fetchProducts();
-                                    fetchLowStockItems();
-                                    fetchRestockSuggestions();
-                                }}
-                                color="primary"
-                            >
-                                <RefreshIcon />
-                            </IconButton>
-                        </>
-                    ) : (
-                        <>
-                            <Button
-                                variant="contained"
-                                startIcon={<AddIcon />}
-                                onClick={() => handleOpenDialog()}
-                            >
-                                Add Product
-                            </Button>
-                            {isAdmin && (
-                                <Button
-                                    variant="outlined"
-                                    color="primary"
-                                    startIcon={<UploadIcon />}
-                                    onClick={() => setImportModalOpen(true)}
-                                >
-                                    Bulk Import
-                                </Button>
-                            )}
-                            <Button
-                                variant="outlined"
-                                startIcon={<RefreshIcon />}
-                                onClick={() => {
-                                    fetchProducts();
-                                    fetchLowStockItems();
-                                    fetchRestockSuggestions();
-                                }}
-                            >
-                                Refresh
-                            </Button>
-                        </>
-                    )}
+                    <Button
+                        variant="contained"
+                        startIcon={<AddIcon />}
+                        onClick={() => handleOpenDialog()}
+                        size={isMobile ? "small" : "medium"}
+                    >
+                        Add Product
+                    </Button>
+                    <Button
+                        variant="outlined"
+                        color="primary"
+                        startIcon={<UploadIcon />}
+                        onClick={() => setImportModalOpen(true)}
+                        size={isMobile ? "small" : "medium"}
+                    >
+                        Bulk Import
+                    </Button>
+                    <Button
+                        variant="outlined"
+                        startIcon={<RefreshIcon />}
+                        onClick={() => {
+                            fetchProducts();
+                            fetchLowStockItems();
+                            fetchRestockSuggestions();
+                        }}
+                        size={isMobile ? "small" : "medium"}
+                    >
+                        Refresh
+                    </Button>
                 </Stack>
             </Box>
 
