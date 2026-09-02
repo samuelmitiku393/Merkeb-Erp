@@ -69,6 +69,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
   const [downloadingTemplate, setDownloadingTemplate] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [errorMsg, setErrorMsg] = useState<string>("");
+  const [telegramNotice, setTelegramNotice] = useState<string>("");
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -81,7 +82,18 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
   const handleDownloadTemplate = async () => {
     try {
       setDownloadingTemplate(true);
+      setTelegramNotice("");
+      setErrorMsg("");
+
+      // Get Telegram WebApp user ID if available
+      const tgChatId = (window as any).Telegram?.WebApp?.initDataUnsafe?.user?.id;
+      const headers: Record<string, string> = {};
+      if (tgChatId) {
+        headers["x-telegram-chat-id"] = String(tgChatId);
+      }
+
       const response = await API.get(templateEndpoint, {
+        headers,
         responseType: "blob",
       });
 
@@ -96,6 +108,8 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
+
+      setTelegramNotice("📥 Excel template generated! Sent to your Telegram DM & browser download.");
     } catch (err) {
       console.error("Template download error:", err);
       setErrorMsg("Failed to download template file");
@@ -232,6 +246,12 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
             </Typography>
           </Box>
         </Box>
+
+        {telegramNotice && (
+          <Alert severity="info" sx={{ mb: 2 }}>
+            {telegramNotice}
+          </Alert>
+        )}
 
         {errorMsg && (
           <Alert severity="error" sx={{ mb: 2 }}>

@@ -1,6 +1,8 @@
 import Product from "../models/Product.js";
 import Order from "../models/Order.js";
+import User from "../models/User.js";
 import ExcelJS from "exceljs";
+import { sendTelegramDocument } from "../services/notificationService.js";
 
 const LOW_STOCK_THRESHOLD = 3;
 
@@ -321,17 +323,38 @@ export const downloadProductTemplate = async (req, res) => {
             imageUrl: ""
         });
 
+        const buffer = await workbook.xlsx.writeBuffer();
+        const filename = "Merkeb_Product_Import_Template.xlsx";
+
+        // Determine Telegram chatId
+        let chatId = req.headers["x-telegram-chat-id"] || req.query.chatId || req.user?.telegramId;
+        if (!chatId && req.user?.id) {
+            const userDoc = await User.findById(req.user.id);
+            if (userDoc?.telegramId) {
+                chatId = userDoc.telegramId;
+            }
+        }
+
+        // Send via Telegram Bot DM if chatId is available
+        if (chatId) {
+            await sendTelegramDocument(
+                chatId,
+                buffer,
+                filename,
+                "📊 *Merkeb ERP — Product Import Template*\nUse this Excel sheet to bulk import or update products."
+            );
+        }
+
         res.setHeader(
             "Content-Type",
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         );
         res.setHeader(
             "Content-Disposition",
-            'attachment; filename="Merkeb_Product_Import_Template.xlsx"'
+            `attachment; filename="${filename}"`
         );
 
-        await workbook.xlsx.write(res);
-        res.end();
+        res.send(Buffer.from(buffer));
     } catch (error) {
         console.error("Template download error:", error);
         res.status(500).json({ message: "Failed to generate template" });

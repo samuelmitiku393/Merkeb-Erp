@@ -45,6 +45,48 @@ export const sendTelegramMessage = async (chatId, text) => {
 };
 
 /**
+ * Send an Excel / document file buffer directly to a Telegram user's DM.
+ */
+export const sendTelegramDocument = async (chatId, fileBuffer, filename, caption = "") => {
+  if (!BOT_TOKEN || BOT_TOKEN === "your-telegram-bot-token-here") {
+    console.log("[Notification] Telegram bot token not configured — skipping document send.");
+    return false;
+  }
+
+  try {
+    const formData = new FormData();
+    formData.append("chat_id", String(chatId));
+
+    // Convert Buffer to Uint8Array Blob for global FormData / fetch in Node.js
+    const blob = new Blob([fileBuffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    });
+    formData.append("document", blob, filename);
+
+    if (caption) {
+      formData.append("caption", caption);
+      formData.append("parse_mode", "Markdown");
+    }
+
+    const response = await fetch(`${TELEGRAM_API}/sendDocument`, {
+      method: "POST",
+      body: formData
+    });
+
+    const data = await response.json();
+    if (!data.ok) {
+      console.error("[Notification] Telegram sendDocument error:", data.description);
+      return false;
+    }
+    console.log(`[Notification] Successfully sent ${filename} to Telegram chatId ${chatId}`);
+    return true;
+  } catch (err) {
+    console.error("[Notification] Failed to send Telegram document:", err.message);
+    return false;
+  }
+};
+
+/**
  * Broadcast a message to all admin users who have a linked Telegram ID.
  */
 export const notifyAdmins = async (text) => {
