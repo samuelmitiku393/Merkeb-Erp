@@ -413,6 +413,8 @@ export const deleteOrder = async (req, res) => {
 const WALK_IN_PHONE = "0000000000";
 const WALK_IN_NAME  = "Walk-in Customer";
 
+const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 /** Finds or creates the anonymous Walk-in Customer sentinel record. */
 const getOrCreateWalkInCustomer = async () => {
   let customer = await Customer.findOne({ phone: WALK_IN_PHONE });
@@ -438,86 +440,154 @@ const resolveCustomer = async (name, phone, address) => {
   return customer;
 };
 
+/**
+ * Resolves a product and size for historical import.
+ * If product does not exist, automatically creates it in inventory (like inventory bulk import).
+ * If size variant does not exist on product, automatically adds it to product.
+ */
+const resolveProductAndSize = async (productName, sizeName, unitPrice = 0) => {
+  const cleanName = (productName || "").trim();
+  const cleanSize = (sizeName || "").trim() || "Standard";
+
+  let product = await Product.findOne({
+    name: { $regex: new RegExp(`^${escapeRegex(cleanName)}$`, "i") }
+  });
+
+  let wasCreated = false;
+  if (!product) {
+    // Auto-create product so historical orders from before ERP never fail!
+    product = new Product({
+      name: cleanName,
+      price: unitPrice || 0,
+      costPrice: 0,
+      sizes: [{ size: cleanSize, stock: 0 }]
+    });
+    await product.save();
+    wasCreated = true;
+    return { product, size: cleanSize, wasCreated };
+  }
+
+  // If product exists, ensure the size variant exists
+  const existingSize = product.sizes.find(
+    s => s.size.toLowerCase() === cleanSize.toLowerCase()
+  );
+
+  if (!existingSize) {
+    product.sizes.push({ size: cleanSize, stock: 0 });
+    await product.save();
+    return { product, size: cleanSize, wasCreated: false };
+  }
+
+  return { product, size: existingSize.size, wasCreated: false };
+};
+
+/** Safely extracts text from an ExcelJS cell. */
+const getCellString = (row, colIndex) => {
+  const cell = row.getCell(colIndex);
+  if (!cell || cell.value === null || cell.value === undefined) return "";
+  if (cell.value instanceof Date) return cell.value.toISOString().split("T")[0];
+  if (typeof cell.value === "object") {
+    return String(cell.value.text || cell.value.result || "").trim();
+  }
+  return String(cell.value).trim();
+};
+
+/** Safely extracts number from an ExcelJS cell. */
+const getCellNumber = (row, colIndex) => {
+  const cell = row.getCell(colIndex);
+  if (!cell || cell.value === null || cell.value === undefined) return null;
+  const num = parseFloat(cell.value);
+  return isNaN(num) ? null : num;
+};
+
+/** Safely parses order date from Excel cell (supports Date, Serial number, and string). */
+const parseOrderDate = (val) => {
+  if (!val) return new Date();
+  if (val instanceof Date && !isNaN(val.getTime())) return val;
+  if (typeof val === "number") {
+    // Excel serial date (days since 1899-12-30)
+    const excelEpoch = new Date(1899, 11, 30);
+    const date = new Date(excelEpoch.getTime() + val * 86400000);
+    return isNaN(date.getTime()) ? new Date() : date;
+  }
+  const str = String(val).trim();
+  const parsed = new Date(str);
+  return isNaN(parsed.getTime()) ? new Date() : parsed;
+};
+
 // DOWNLOAD ORDER IMPORT TEMPLATE (.xlsx)
 export const downloadOrderTemplate = async (req, res) => {
   try {
-    const workbook  = new ExcelJS.Workbook();
+    const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet("Order Import Template");
 
     worksheet.columns = [
-      { header: "Customer Name",     key: "customerName",    width: 22 },
-      { header: "Customer Phone",    key: "customerPhone",   width: 18 },
-      { header: "Customer Address",  key: "customerAddress", width: 25 },
+      { header: "Customer Name", key: "customerName", width: 22 },
+      { header: "Customer Phone", key: "customerPhone", width: 18 },
+      { header: "Customer Address", key: "customerAddress", width: 25 },
       { header: "Order Date (YYYY-MM-DD)", key: "orderDate", width: 22 },
-      { header: "Status",            key: "status",          width: 14 },
-      { header: "Product Name *",    key: "productName",     width: 28 },
-      { header: "Size *",            key: "size",            width: 10 },
-      { header: "Quantity *",        key: "quantity",        width: 12 },
-      { header: "Price (ETB)",       key: "price",           width: 14 },
-      { header: "Notes",             key: "notes",           width: 30 }
+      { header: "Status", key: "status", width: 15 },
+      { header: "Product Name *", key: "productName", width: 28 },
+      { header: "Size * (e.g. M or S:1, L:2)", key: "size", width: 25 },
+      { header: "Quantity *", key: "quantity", width: 12 },
+      { header: "Selling Price (ETB)", key: "price", width: 18 },
+      { header: "Notes", key: "notes", width: 30 }
     ];
 
-    // Style header row
+    // Style header row exactly like Inventory template
     const headerRow = worksheet.getRow(1);
-    headerRow.font      = { bold: true, color: { argb: "FFFFFF" } };
-    headerRow.fill      = { type: "pattern", pattern: "solid", fgColor: { argb: "1E88E5" } };
+    headerRow.font = { bold: true, color: { argb: "FFFFFF" } };
+    headerRow.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "1E88E5" }
+    };
     headerRow.alignment = { vertical: "middle", horizontal: "center" };
 
     // Sample rows
     worksheet.addRow({
-      customerName:    "Abebe Kebede",
-      customerPhone:   "0911234567",
+      customerName: "Abebe Kebede",
+      customerPhone: "0911234567",
       customerAddress: "Bole, Addis Ababa",
-      orderDate:       "2025-03-15",
-      status:          "delivered",
-      productName:     "Home Jersey 2026",
-      size:            "L",
-      quantity:        2,
-      price:           2500,
-      notes:           ""
+      orderDate: "2025-03-15",
+      status: "delivered",
+      productName: "Home Jersey 2026",
+      size: "L",
+      quantity: 2,
+      price: 2500,
+      notes: ""
     });
+
     worksheet.addRow({
-      customerName:    "Abebe Kebede",
-      customerPhone:   "0911234567",
+      customerName: "Abebe Kebede",
+      customerPhone: "0911234567",
       customerAddress: "Bole, Addis Ababa",
-      orderDate:       "2025-03-15",
-      status:          "delivered",
-      productName:     "Training Tracksuit",
-      size:            "M",
-      quantity:        1,
-      price:           3500,
-      notes:           "Same order as row above — same customer + date"
+      orderDate: "2025-03-15",
+      status: "delivered",
+      productName: "Training Tracksuit",
+      size: "M",
+      quantity: 1,
+      price: 3500,
+      notes: "Same customer + date groups into 1 order"
     });
+
     worksheet.addRow({
-      customerName:    "",
-      customerPhone:   "",
+      customerName: "",
+      customerPhone: "",
       customerAddress: "",
-      orderDate:       "2025-04-01",
-      status:          "delivered",
-      productName:     "Home Jersey 2026",
-      size:            "S",
-      quantity:        1,
-      price:           "",
-      notes:           "No customer info — assigned to Walk-in Customer automatically"
+      orderDate: "2025-04-01",
+      status: "delivered",
+      productName: "Away Jersey 2026",
+      size: "S",
+      quantity: 1,
+      price: 2200,
+      notes: "Blank customer auto-assigns to Walk-in Customer"
     });
 
-    // Notes sheet
-    const notes = workbook.addWorksheet("Instructions");
-    notes.getCell("A1").value  = "BULK ORDER IMPORT — INSTRUCTIONS";
-    notes.getCell("A1").font   = { bold: true, size: 13 };
-    notes.getCell("A3").value  = "• Rows with the same Customer Phone AND Order Date are grouped into ONE order (multi-item).";
-    notes.getCell("A4").value  = "• Leave Customer Name & Phone blank to assign the order to a Walk-in Customer.";
-    notes.getCell("A5").value  = "• Product Name must match exactly as it appears in Inventory.";
-    notes.getCell("A6").value  = "• Price is optional — leave blank to use the product's stored selling price.";
-    notes.getCell("A7").value  = "• Status defaults to 'delivered' if blank. Valid values: pending / confirmed / shipped / delivered / cancelled / refunded";
-    notes.getCell("A8").value  = "• Stock is NOT affected by this import (historical orders only).";
-    notes.getCell("A9").value  = "• Order Date format: YYYY-MM-DD (e.g. 2025-03-15). Defaults to today if blank.";
-    notes.getColumn("A").width = 90;
-
-    const buffer   = await workbook.xlsx.writeBuffer();
+    const buffer = await workbook.xlsx.writeBuffer();
     const filename = "Merkeb_Order_Import_Template.xlsx";
 
-    // Send via Telegram (non-blocking)
+    // Determine Telegram chatId
     let chatId = req.headers["x-telegram-chat-id"] || req.query.chatId || req.user?.telegramId;
     if (!chatId && req.user?.id) {
       const userDoc = await User.findById(req.user.id);
@@ -548,30 +618,33 @@ export const importOrders = async (req, res) => {
       return res.status(400).json({ message: "Please upload an Excel or CSV file" });
     }
 
-    const workbook  = new ExcelJS.Workbook();
+    const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(req.file.buffer);
     const worksheet = workbook.worksheets[0];
     if (!worksheet) {
       return res.status(400).json({ message: "Workbook contains no worksheets" });
     }
 
-    // Parse rows (1-indexed; skip header row 1)
+    // Parse rows using safe cell getters
     const rows = [];
     worksheet.eachRow((row, rowNumber) => {
-      if (rowNumber === 1) return;
-      const v = row.values; // 1-indexed
+      if (rowNumber === 1) return; // Skip header row
+
+      const productName = getCellString(row, 6);
+      if (!productName) return; // Skip blank rows
+
       rows.push({
         rowNumber,
-        customerName:    v[1]  ? String(v[1]).trim()  : "",
-        customerPhone:   v[2]  ? String(v[2]).trim()  : "",
-        customerAddress: v[3]  ? String(v[3]).trim()  : "",
-        orderDateRaw:    v[4]  ? String(v[4]).trim()  : "",
-        status:          v[5]  ? String(v[5]).trim().toLowerCase() : "delivered",
-        productName:     v[6]  ? String(v[6]).trim()  : "",
-        size:            v[7]  ? String(v[7]).trim()  : "",
-        quantity:        parseInt(v[8])  || 0,
-        priceOverride:   v[9]  ? parseFloat(v[9])     : null,
-        notes:           v[10] ? String(v[10]).trim() : ""
+        customerName: getCellString(row, 1),
+        customerPhone: getCellString(row, 2),
+        customerAddress: getCellString(row, 3),
+        orderDateRaw: row.getCell(4).value,
+        status: (getCellString(row, 5) || "delivered").toLowerCase(),
+        productName,
+        sizeStr: getCellString(row, 7) || "Standard",
+        quantity: Math.max(1, getCellNumber(row, 8) || 1),
+        priceOverride: getCellNumber(row, 9),
+        notes: getCellString(row, 10)
       });
     });
 
@@ -582,63 +655,60 @@ export const importOrders = async (req, res) => {
     const validStatuses = ["pending", "confirmed", "shipped", "delivered", "cancelled", "refunded"];
 
     // ── Group rows into logical orders by (customerPhone|'walk-in') + orderDate ──
-    // Key: "<phone>|<date>"  → { customerInfo, status, date, items[], notes }
     const orderMap = new Map();
-    const errors   = [];
+    const errors = [];
 
     for (const row of rows) {
-      // Validate product columns
-      if (!row.productName) {
-        errors.push({ row: row.rowNumber, error: "Product Name is required" });
-        continue;
-      }
-      if (!row.size) {
-        errors.push({ row: row.rowNumber, product: row.productName, error: "Size is required" });
-        continue;
-      }
-      if (row.quantity <= 0) {
-        errors.push({ row: row.rowNumber, product: row.productName, error: "Quantity must be greater than 0" });
-        continue;
-      }
-
-      // Parse date
-      let orderDate = new Date();
-      if (row.orderDateRaw) {
-        const parsed = new Date(row.orderDateRaw);
-        if (!isNaN(parsed.getTime())) orderDate = parsed;
-      }
+      const orderDate = parseOrderDate(row.orderDateRaw);
       const dateKey = orderDate.toISOString().split("T")[0]; // YYYY-MM-DD
-
       const phoneKey = row.customerPhone || "walk-in";
       const groupKey = `${phoneKey}|${dateKey}`;
 
       if (!orderMap.has(groupKey)) {
         orderMap.set(groupKey, {
-          customerName:    row.customerName,
-          customerPhone:   row.customerPhone,
+          customerName: row.customerName,
+          customerPhone: row.customerPhone,
           customerAddress: row.customerAddress,
-          status:          validStatuses.includes(row.status) ? row.status : "delivered",
+          status: validStatuses.includes(row.status) ? row.status : "delivered",
           orderDate,
-          items:           [],
-          notes:           row.notes
+          items: [],
+          notes: row.notes
         });
       }
 
-      orderMap.get(groupKey).items.push({
-        productName:   row.productName,
-        size:          row.size,
-        quantity:      row.quantity,
-        priceOverride: row.priceOverride,
-        rowNumber:     row.rowNumber
-      });
+      // Check if size string contains multiple sizes/quantities like "S:1, M:2" (like inventory format)
+      if (row.sizeStr.includes(":") && row.sizeStr.includes(",")) {
+        const parts = row.sizeStr.split(",");
+        for (const part of parts) {
+          const [sName, sQty] = part.split(":");
+          if (sName && sName.trim()) {
+            orderMap.get(groupKey).items.push({
+              productName: row.productName,
+              size: sName.trim(),
+              quantity: Math.max(1, parseInt(sQty) || 1),
+              priceOverride: row.priceOverride,
+              rowNumber: row.rowNumber
+            });
+          }
+        }
+      } else {
+        orderMap.get(groupKey).items.push({
+          productName: row.productName,
+          size: row.sizeStr,
+          quantity: row.quantity,
+          priceOverride: row.priceOverride,
+          rowNumber: row.rowNumber
+        });
+      }
     }
 
-    // ── Create Order documents ──────────────────────────────────────────────
+    // ── Create Order documents (with auto-create of products/sizes like inventory) ──
     let importedCount = 0;
+    let autoCreatedProducts = 0;
     const skippedItems = [];
 
     for (const [, orderData] of orderMap) {
-      // Resolve customer (or walk-in fallback)
+      // 1. Resolve customer (or Walk-in Customer fallback)
       let customerDoc;
       try {
         customerDoc = await resolveCustomer(
@@ -647,78 +717,88 @@ export const importOrders = async (req, res) => {
           orderData.customerAddress
         );
       } catch (err) {
-        // Mark all items in this group as skipped
         orderData.items.forEach(i =>
-          skippedItems.push({ row: i.rowNumber, customer: orderData.customerName || "(blank)", error: `Customer error: ${err.message}` })
+          skippedItems.push({
+            row: i.rowNumber,
+            customer: orderData.customerName || "(blank)",
+            error: `Customer error: ${err.message}`
+          })
         );
         continue;
       }
 
-      // Resolve products + build order items
-      const resolvedItems  = [];
-      let   totalPrice     = 0;
-      let   hasItemError   = false;
+      // 2. Resolve products and build order items (auto-creating products if not in inventory)
+      const resolvedItems = [];
+      let totalPrice = 0;
 
       for (const item of orderData.items) {
-        const product = await Product.findOne({ name: item.productName });
-        if (!product) {
-          skippedItems.push({ row: item.rowNumber, product: item.productName, error: `Product not found: "${item.productName}"` });
-          hasItemError = true;
-          continue;
+        try {
+          const { product, size, wasCreated } = await resolveProductAndSize(
+            item.productName,
+            item.size,
+            item.priceOverride || 0
+          );
+
+          if (wasCreated) {
+            autoCreatedProducts++;
+          }
+
+          const unitPrice =
+            item.priceOverride !== null && !isNaN(item.priceOverride) && item.priceOverride >= 0
+              ? item.priceOverride
+              : product.price || 0;
+
+          resolvedItems.push({
+            product: product._id,
+            size,
+            quantity: item.quantity,
+            price: unitPrice
+          });
+
+          totalPrice += unitPrice * item.quantity;
+        } catch (itemErr) {
+          skippedItems.push({
+            row: item.rowNumber,
+            product: item.productName,
+            error: itemErr.message
+          });
         }
-
-        const sizeExists = product.sizes.some(s => s.size.toLowerCase() === item.size.toLowerCase());
-        if (!sizeExists) {
-          skippedItems.push({ row: item.rowNumber, product: item.productName, error: `Size "${item.size}" not found in product` });
-          hasItemError = true;
-          continue;
-        }
-
-        // Use overridden price or product's stored selling price
-        const unitPrice = (item.priceOverride !== null && !isNaN(item.priceOverride))
-          ? item.priceOverride
-          : product.price;
-
-        resolvedItems.push({
-          product:  product._id,
-          size:     item.size,
-          quantity: item.quantity,
-          price:    unitPrice
-        });
-        totalPrice += unitPrice * item.quantity;
       }
 
-      // Skip entire order if ALL items errored
       if (resolvedItems.length === 0) continue;
 
-      // Create the order — note: no stock deduction (historical import)
+      // 3. Create the historical order (without touching stock levels)
       try {
         await Order.create({
-          customer:    customerDoc._id,
-          items:       resolvedItems,
+          customer: customerDoc._id,
+          items: resolvedItems,
           totalPrice,
-          status:      orderData.status,
-          paymentStatus:  orderData.status === "delivered" ? "paid" : "pending",
+          status: orderData.status,
+          paymentStatus: orderData.status === "delivered" ? "paid" : "pending",
           deliveryStatus: ["delivered", "shipped"].includes(orderData.status) ? orderData.status : "pending",
-          createdAt:   orderData.orderDate,
+          createdAt: orderData.orderDate,
           cancellationReason: orderData.notes || ""
         });
         importedCount++;
       } catch (err) {
         orderData.items.forEach(i =>
-          skippedItems.push({ row: i.rowNumber, customer: orderData.customerName, error: err.message })
+          skippedItems.push({
+            row: i.rowNumber,
+            customer: orderData.customerName,
+            error: err.message
+          })
         );
       }
     }
 
     res.json({
-      success:       true,
-      message:       `Import processed: ${importedCount} order(s) created, ${skippedItems.length} row(s) skipped`,
-      totalRows:     rows.length,
+      success: true,
+      message: `Import processed: ${importedCount} order(s) created${autoCreatedProducts > 0 ? `, ${autoCreatedProducts} product(s) added to catalog` : ""}${skippedItems.length > 0 ? `, ${skippedItems.length} item(s) skipped` : ""}`,
+      totalRows: rows.length,
       importedCount,
-      updatedCount:  0,
-      skippedCount:  skippedItems.length,
-      errors:        skippedItems
+      updatedCount: autoCreatedProducts,
+      skippedCount: skippedItems.length,
+      errors: skippedItems
     });
   } catch (error) {
     console.error("Bulk import orders error:", error);

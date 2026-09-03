@@ -901,7 +901,7 @@ const OrdersPage = () => {
             <BulkImportModal
                 open={importModalOpen}
                 onClose={() => setImportModalOpen(false)}
-                title="Bulk Import Historical Orders"
+                title="Bulk Import Orders"
                 templateEndpoint="/orders/import-template"
                 importEndpoint="/orders/import"
                 onSuccess={() => fetchOrders(1, tab)}
