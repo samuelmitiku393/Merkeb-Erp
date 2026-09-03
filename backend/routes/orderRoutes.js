@@ -5,12 +5,29 @@ import {
   updateOrderStatus,
   updateOrder,
   cancelOrder,
-  deleteOrder
+  deleteOrder,
+  downloadOrderTemplate,
+  importOrders
 } from "../controllers/orderController.js";
 import { authenticateToken } from "../middleware/auth.js";
 import { auditLog } from "../middleware/auditMiddleware.js";
+import upload from "../middleware/upload.js";
 
 const router = express.Router();
+
+// Download Order import Excel template
+router.get("/import-template",
+  authenticateToken,
+  downloadOrderTemplate
+);
+
+// Bulk Import orders via Excel / CSV
+router.post("/import",
+  authenticateToken,
+  upload.single("file"),
+  auditLog('CREATE', 'ORDER', 'Bulk orders import performed'),
+  importOrders
+);
 
 // Create order
 router.post("/",

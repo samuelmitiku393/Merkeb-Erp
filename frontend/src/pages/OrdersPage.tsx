@@ -55,9 +55,11 @@ import {
     Home as HomeIcon,
     Cancel as CancelIcon,
     NavigateNext as NavigateNextIcon,
-    NavigateBefore as NavigateBeforeIcon
+    NavigateBefore as NavigateBeforeIcon,
+    FileUpload as UploadIcon
 } from "@mui/icons-material";
 import API from "../api/axios";
+import BulkImportModal from "../components/BulkImportModal";
 
 const statusColors: Record<OrderStatus, 'warning' | 'info' | 'primary' | 'success' | 'error' | 'default'> = {
     pending: "warning",
@@ -124,6 +126,7 @@ const OrdersPage = () => {
     });
     const [snackbar, setSnackbar] = useState<SnackbarState>({ open: false, message: "", severity: "success" });
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+    const [importModalOpen, setImportModalOpen] = useState(false);
 
     // Cancel order state
     const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
@@ -316,12 +319,26 @@ const OrdersPage = () => {
         }}>
             {/* Header */}
             <Box mb={{ xs: 2, sm: 3 }}>
-                <Typography variant="h5" fontWeight="bold" gutterBottom sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem' } }}>
-                    Orders Management
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                    Manage and track all your orders
-                </Typography>
+                <Box display="flex" justifyContent="space-between" alignItems="flex-start" flexWrap="wrap" gap={1}>
+                    <Box>
+                        <Typography variant="h5" fontWeight="bold" gutterBottom sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem' } }}>
+                            Orders Management
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                            Manage and track all your orders
+                        </Typography>
+                    </Box>
+                    <Button
+                        variant="outlined"
+                        color="primary"
+                        startIcon={<UploadIcon />}
+                        onClick={() => setImportModalOpen(true)}
+                        size="small"
+                        sx={{ alignSelf: 'center', whiteSpace: 'nowrap' }}
+                    >
+                        Bulk Import
+                    </Button>
+                </Box>
             </Box>
 
             {/* Search Bar */}
@@ -879,6 +896,16 @@ const OrdersPage = () => {
                     </Button>
                 </DialogActions>
             </Dialog>
+
+            {/* Bulk Import Modal */}
+            <BulkImportModal
+                open={importModalOpen}
+                onClose={() => setImportModalOpen(false)}
+                title="Bulk Import Historical Orders"
+                templateEndpoint="/orders/import-template"
+                importEndpoint="/orders/import"
+                onSuccess={() => fetchOrders(1, tab)}
+            />
 
             {/* Pagination Controls */}
             {totalPages > 1 && (
