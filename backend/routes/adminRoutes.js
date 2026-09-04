@@ -10,22 +10,10 @@ import User from "../models/User.js";
 
 const router = express.Router();
 
-// Middleware to ensure user has admin role
-const requireAdmin = (req, res, next) => {
-  if (req.user?.role !== "admin") {
-    return res.status(403).json({
-      success: false,
-      message: "Forbidden: Admin privileges required",
-    });
-  }
-  next();
-};
-
 // Trigger manual backup
 router.post(
   "/backup",
   authenticateToken,
-  requireAdmin,
   auditLog("CREATE", "SETTINGS", "Manual database backup triggered"),
   async (req, res) => {
     try {
@@ -50,7 +38,6 @@ router.post(
 router.get(
   "/backups",
   authenticateToken,
-  requireAdmin,
   async (req, res) => {
     try {
       const backups = listBackups();
@@ -72,7 +59,6 @@ router.get(
 router.get(
   "/database-stats",
   authenticateToken,
-  requireAdmin,
   async (req, res) => {
     try {
       const [orders, products, customers, auditLogs, nonAdminUsers] = await Promise.all([
@@ -108,7 +94,6 @@ router.get(
 router.post(
   "/reset-database",
   authenticateToken,
-  requireAdmin,
   async (req, res) => {
     try {
       const { createBackupBeforeReset = true, deleteNonAdminUsers = false } = req.body;

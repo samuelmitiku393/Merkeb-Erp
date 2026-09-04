@@ -96,15 +96,7 @@ const Layout = ({ children }: LayoutProps) => {
                         >
                             Merkeb ERP
                         </Typography>
-                        {user?.role === 'admin' && (
-                            <Chip
-                                label="Admin"
-                                color="primary"
-                                size="small"
-                                variant="outlined"
-                                sx={{ height: 20, fontSize: '0.65rem', fontWeight: 'bold' }}
-                            />
-                        )}
+
                     </Box>
                 </Toolbar>
             </AppBar>

@@ -232,7 +232,6 @@ const Profile = () => {
 
     // Fetch database record statistics
     const fetchDatabaseStats = async () => {
-        if (user?.role !== 'admin') return;
         setDbStatsLoading(true);
         try {
             const res = await API.get('/admin/database-stats');
@@ -321,16 +320,16 @@ const Profile = () => {
     // Sync tab with URL search parameter (?tab=profile | audit | reports | system)
     const tabParam = searchParams.get('tab');
     useEffect(() => {
-        if (tabParam === 'audit' && user?.role === 'admin') {
+        if (tabParam === 'audit') {
             setActiveTab(1);
-        } else if (tabParam === 'reports' && user?.role === 'admin') {
+        } else if (tabParam === 'reports') {
             setActiveTab(2);
-        } else if (tabParam === 'system' && user?.role === 'admin') {
+        } else if (tabParam === 'system') {
             setActiveTab(3);
         } else if (tabParam === 'profile' || !tabParam) {
             setActiveTab(0);
         }
-    }, [tabParam, user?.role]);
+    }, [tabParam]);
 
     const changeTab = (newTab: number) => {
         setActiveTab(newTab);
@@ -363,10 +362,10 @@ const Profile = () => {
 
     // Fetch audit logs when tab changes to audit trail
     useEffect(() => {
-        if (activeTab === 1 && user?.role === 'admin') {
+        if (activeTab === 1) {
             fetchAuditLogs();
             fetchAuditStats();
-        } else if ((activeTab === 3 || activeTab === 0) && user?.role === 'admin') {
+        } else if (activeTab === 3 || activeTab === 0) {
             fetchDatabaseStats();
         }
     }, [activeTab, auditPage, auditRowsPerPage, auditFilters]);
@@ -475,12 +474,10 @@ const Profile = () => {
         setSettings(newSettings);
         localStorage.setItem('userSettings', JSON.stringify(newSettings));
         
-        if (user?.role === 'admin') {
-            API.post('/audit/settings-change', {
+        API.post('/audit/settings-change', {
                 setting,
                 value: newSettings[setting]
             }).catch(err => console.error('Failed to log settings change:', err));
-        }
         
         setSnackbar({
             open: true,
@@ -794,39 +791,33 @@ const Profile = () => {
                             iconPosition="start"
                             label="Profile"
                         />
-                        {user?.role === 'admin' && (
-                            <Tab
-                                icon={
-                                    <Badge badgeContent={totalAuditLogs > 0 ? totalAuditLogs : null} color="primary" max={999}>
-                                        <HistoryIcon fontSize="small" />
-                                    </Badge>
-                                }
-                                iconPosition="start"
-                                label="Audit Trail"
-                            />
-                        )}
-                        {user?.role === 'admin' && (
-                            <Tab
-                                icon={<AssessmentIcon fontSize="small" />}
-                                iconPosition="start"
-                                label="Reports"
-                            />
-                        )}
-                        {user?.role === 'admin' && (
-                            <Tab
-                                icon={
-                                    <Badge badgeContent={dbStats ? (dbStats.orders + dbStats.products) : null} color="error" max={999}>
-                                        <StorageIcon fontSize="small" />
-                                    </Badge>
-                                }
-                                iconPosition="start"
-                                label="Reset & System"
-                                sx={{
-                                    color: activeTab === 3 ? 'error.main' : undefined,
-                                    '&.Mui-selected': { color: 'error.main' }
-                                }}
-                            />
-                        )}
+                        <Tab
+                            icon={
+                                <Badge badgeContent={totalAuditLogs > 0 ? totalAuditLogs : null} color="primary" max={999}>
+                                    <HistoryIcon fontSize="small" />
+                                </Badge>
+                            }
+                            iconPosition="start"
+                            label="Audit Trail"
+                        />
+                        <Tab
+                            icon={<AssessmentIcon fontSize="small" />}
+                            iconPosition="start"
+                            label="Reports"
+                        />
+                        <Tab
+                            icon={
+                                <Badge badgeContent={dbStats ? (dbStats.orders + dbStats.products) : null} color="error" max={999}>
+                                    <StorageIcon fontSize="small" />
+                                </Badge>
+                            }
+                            iconPosition="start"
+                            label="Reset & System"
+                            sx={{
+                                color: activeTab === 3 ? 'error.main' : undefined,
+                                '&.Mui-selected': { color: 'error.main' }
+                            }}
+                        />
                     </Tabs>
                 </Box>
 
@@ -868,7 +859,7 @@ const Profile = () => {
                                             sx={{
                                                 width: 80,
                                                 height: 80,
-                                                bgcolor: user?.role === 'admin' ? 'secondary.main' : 'primary.main',
+                                                bgcolor: 'primary.main',
                                                 fontSize: 32
                                             }}
                                             src={user?.photoUrl || user?.avatar || profileData.avatar}
@@ -881,9 +872,7 @@ const Profile = () => {
                                             <Typography variant="h6" fontWeight="600">
                                                 {getUserDisplayName()}
                                             </Typography>
-                                            {user?.role === 'admin' && (
-                                                <VerifiedIcon color="primary" fontSize="small" />
-                                            )}
+                                            <VerifiedIcon color="primary" fontSize="small" />
                                         </Stack>
                                         {user?.telegramUsername ? (
                                             <Typography variant="caption" color="text.secondary" display="block">
@@ -1025,7 +1014,7 @@ const Profile = () => {
                 )}
 
                 {/* Audit Trail Tab Content */}
-                {activeTab === 1 && user?.role === 'admin' && (
+                {activeTab === 1 && (
                     <Box>
                         {/* Audit Stats */}
                         {auditStats && (
@@ -1565,7 +1554,7 @@ const Profile = () => {
                 )}
 
                 {/* Reports Tab Content */}
-                {activeTab === 2 && user?.role === 'admin' && (
+                {activeTab === 2 && (
                     <Box>
                         <Grid container spacing={3}>
                             {/* Report Type Selection Cards */}
@@ -1987,24 +1976,22 @@ const Profile = () => {
                                 <Typography variant="caption" color="text.secondary" sx={{ display: { xs: 'none', sm: 'block' } }}>
                                     Reports
                                 </Typography>
-                                {user?.role === 'admin' && (
-                                    <Button
-                                        size="small"
-                                        endIcon={<ArrowForwardIcon />}
-                                        onClick={() => changeTab(3)}
-                                        color="error"
-                                        sx={{ textTransform: 'none' }}
-                                    >
-                                        Reset & System →
-                                    </Button>
-                                )}
+                                <Button
+                                    size="small"
+                                    endIcon={<ArrowForwardIcon />}
+                                    onClick={() => changeTab(3)}
+                                    color="error"
+                                    sx={{ textTransform: 'none' }}
+                                >
+                                    Reset &amp; System →
+                                </Button>
                             </Stack>
                         </Paper>
                     </Box>
                 )}
 
                 {/* Reset & System Tab Content */}
-                {activeTab === 3 && user?.role === 'admin' && (
+                {activeTab === 3 && (
                     <Box>
                         {/* Database Stats */}
                         <Paper sx={{ p: 3, borderRadius: 2, mb: 3 }}>
