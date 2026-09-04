@@ -29,7 +29,14 @@ export const createOrder = async (req, res) => {
   const session = await Order.startSession();
   try {
     await session.startTransaction();
-    const { customer, items } = req.body;
+    const {
+      customer,
+      items,
+      discount = 0,
+      discountType = "fixed",
+      adjustment = 0,
+      negotiationNotes = ""
+    } = req.body;
 
     // Basic validation
     if (!customer || !items || items.length === 0) {
@@ -37,7 +44,7 @@ export const createOrder = async (req, res) => {
       return res.status(400).json({ message: "Invalid order data" });
     }
 
-    let totalPrice = 0;
+    let subtotal = 0;
     const processedItems = [];
     const affectedProductIds = [];
 
@@ -72,26 +79,56 @@ export const createOrder = async (req, res) => {
         });
       }
 
-      // 3. SECURE pricing (never trust frontend)
+      // 3. Flexible Negotiated Pricing:
+      // Allow custom negotiated unit price per item if specified (>= 0), otherwise default to catalog price
+      const catalogPrice = product.price || 0;
+      const unitPrice =
+        typeof item.price === "number" && !isNaN(item.price) && item.price >= 0
+          ? item.price
+          : catalogPrice;
+
+      const itemDiscount = Math.max(0, catalogPrice - unitPrice);
+
       const orderItem = {
         product: item.product,
         size: item.size,
         quantity: item.quantity,
-        price: product.price
+        price: unitPrice,
+        originalPrice: catalogPrice,
+        discount: itemDiscount
       };
 
       processedItems.push(orderItem);
       affectedProductIds.push(item.product);
 
-      // 4. Calculate total safely
-      totalPrice += product.price * item.quantity;
+      // 4. Calculate subtotal
+      subtotal += unitPrice * item.quantity;
     }
 
-    // 5. Create order
+    // 5. Calculate order-level discount & final total
+    let orderDiscountAmount = 0;
+    const numDiscount = Number(discount) || 0;
+    if (numDiscount > 0) {
+      if (discountType === "percentage") {
+        orderDiscountAmount = (subtotal * numDiscount) / 100;
+      } else {
+        orderDiscountAmount = numDiscount;
+      }
+    }
+
+    const numAdjustment = Number(adjustment) || 0;
+    const finalTotal = Math.max(0, subtotal - orderDiscountAmount + numAdjustment);
+
+    // 6. Create order
     const order = new Order({
       customer,
       items: processedItems,
-      totalPrice,
+      subtotal,
+      discount: orderDiscountAmount,
+      discountType: discountType === "percentage" ? "percentage" : "fixed",
+      adjustment: numAdjustment,
+      totalPrice: finalTotal,
+      negotiationNotes: String(negotiationNotes || "").trim(),
       paymentStatus: "pending",
       deliveryStatus: "pending"
     });
@@ -99,7 +136,7 @@ export const createOrder = async (req, res) => {
     const savedOrder = await order.save({ session });
     await session.commitTransaction();
 
-    // 6. Fire Telegram notifications (after commit, non-blocking)
+    // 7. Fire Telegram notifications (after commit, non-blocking)
     Order.findById(savedOrder._id)
       .populate("customer")
       .populate("items.product")
@@ -272,7 +309,14 @@ export const updateOrder = async (req, res) => {
   const session = await Order.startSession();
   try {
     await session.startTransaction();
-    const { customer, items } = req.body;
+    const {
+      customer,
+      items,
+      discount,
+      discountType,
+      adjustment,
+      negotiationNotes
+    } = req.body;
     const order = await Order.findById(req.params.id).session(session);
 
     if (!order) {
@@ -280,8 +324,8 @@ export const updateOrder = async (req, res) => {
       return res.status(404).json({ message: "Order not found" });
     }
 
-    // Calculate new total price
-    let totalPrice = 0;
+    // Calculate new subtotal
+    let subtotal = 0;
     const processedItems = [];
 
     // If items are being updated, validate stock changes
@@ -327,28 +371,57 @@ export const updateOrder = async (req, res) => {
           }
         }
 
+        const catalogPrice = item.originalPrice !== undefined ? item.originalPrice : (product.price || 0);
+        const unitPrice =
+          typeof item.price === "number" && !isNaN(item.price) && item.price >= 0
+            ? item.price
+            : catalogPrice;
+
+        const itemDiscount = Math.max(0, catalogPrice - unitPrice);
+
         const orderItem = {
           product: item.product,
           size: item.size,
           quantity: item.quantity,
-          price: product.price
+          price: unitPrice,
+          originalPrice: catalogPrice,
+          discount: itemDiscount
         };
 
         processedItems.push(orderItem);
-        totalPrice += product.price * item.quantity;
+        subtotal += unitPrice * item.quantity;
       }
     } else {
       // Keep existing items if none provided
       processedItems.push(...order.items);
-      totalPrice = order.totalPrice;
+      subtotal = order.subtotal || order.totalPrice;
     }
+
+    const currentDiscountType = discountType !== undefined ? discountType : (order.discountType || "fixed");
+    const rawDiscount = discount !== undefined ? Number(discount) : (order.discount || 0);
+    let orderDiscountAmount = 0;
+    if (rawDiscount > 0) {
+      if (currentDiscountType === "percentage") {
+        orderDiscountAmount = (subtotal * rawDiscount) / 100;
+      } else {
+        orderDiscountAmount = rawDiscount;
+      }
+    }
+
+    const currentAdjustment = adjustment !== undefined ? Number(adjustment) : (order.adjustment || 0);
+    const finalTotal = Math.max(0, subtotal - orderDiscountAmount + currentAdjustment);
 
     const updatedOrder = await Order.findByIdAndUpdate(
       req.params.id,
       {
         customer: customer || order.customer,
         items: processedItems,
-        totalPrice
+        subtotal,
+        discount: orderDiscountAmount,
+        discountType: currentDiscountType,
+        adjustment: currentAdjustment,
+        totalPrice: finalTotal,
+        negotiationNotes: negotiationNotes !== undefined ? String(negotiationNotes).trim() : (order.negotiationNotes || "")
       },
       { new: true, session }
     ).populate("customer").populate("items.product");

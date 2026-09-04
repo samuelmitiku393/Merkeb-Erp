@@ -137,12 +137,28 @@ export const notifyLowStock = async (productName, size, currentStock) => {
 export const notifyNewOrder = async (order) => {
   const customerName = order.customer?.name || "Unknown Customer";
   const itemsList = order.items
-    .map((i) => `• ${i.product?.name || "Item"} (${i.size}) x${i.quantity}`)
+    .map((i) => {
+      const priceTag = i.price !== undefined ? ` @ ${i.price} ETB` : "";
+      const origTag = i.originalPrice && i.originalPrice !== i.price ? ` _(list: ${i.originalPrice} ETB)_` : "";
+      return `• ${i.product?.name || "Item"} (${i.size}) x${i.quantity}${priceTag}${origTag}`;
+    })
     .join("\n");
+
+  let pricingBreakdown = `Total: *${order.totalPrice} ETB*`;
+  if (order.discount > 0) {
+    pricingBreakdown += `\nDiscount: *-${order.discount} ETB*`;
+  }
+  if (order.adjustment && order.adjustment !== 0) {
+    pricingBreakdown += `\nAdjustment: *${order.adjustment > 0 ? "+" : ""}${order.adjustment} ETB*`;
+  }
+  if (order.negotiationNotes) {
+    pricingBreakdown += `\nNote: _${order.negotiationNotes}_`;
+  }
+
   const message =
     `🛒 *New Order Placed*\n\n` +
     `Customer: *${customerName}*\n` +
-    `Total: *${order.totalPrice} ETB*\n\n` +
+    `${pricingBreakdown}\n\n` +
     `Items:\n${itemsList}`;
   await notifyAdmins(message);
 };

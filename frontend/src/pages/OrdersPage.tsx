@@ -33,6 +33,7 @@ import {
     ListItemText,
     ListItemAvatar,
     ListItemSecondaryAction,
+    Stack,
     Divider,
     Tooltip,
     ButtonGroup
@@ -119,10 +120,18 @@ const OrdersPage = () => {
     const [editMode, setEditMode] = useState(false);
     const [editFormData, setEditFormData] = useState<{
         customer: { name: string; phone: string; address: string };
-        items: Array<{ _id?: string; product: string; productName: string; size: string; quantity: number; price: number }>;
+        items: Array<{ _id?: string; product: string; productName: string; size: string; quantity: number; price: number; originalPrice?: number; catalogPrice?: number }>;
+        discount?: number;
+        discountType?: 'fixed' | 'percentage';
+        adjustment?: number;
+        negotiationNotes?: string;
     }>({
         customer: { name: "", phone: "", address: "" },
-        items: []
+        items: [],
+        discount: 0,
+        discountType: 'fixed',
+        adjustment: 0,
+        negotiationNotes: ''
     });
     const [snackbar, setSnackbar] = useState<SnackbarState>({ open: false, message: "", severity: "success" });
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -261,10 +270,16 @@ const OrdersPage = () => {
                 _id: item._id,
                 product: typeof item.product === 'object' && item.product !== null ? item.product._id : item.product,
                 productName: typeof item.product === 'object' && item.product !== null ? item.product.name : "",
+                catalogPrice: typeof item.product === 'object' && item.product !== null ? item.product.price : (item.originalPrice || item.price),
+                originalPrice: item.originalPrice !== undefined ? item.originalPrice : item.price,
                 size: item.size,
                 quantity: item.quantity,
                 price: item.price
-            })) || []
+            })) || [],
+            discount: order.discount || 0,
+            discountType: order.discountType || 'fixed',
+            adjustment: order.adjustment || 0,
+            negotiationNotes: order.negotiationNotes || ''
         });
         setEditMode(false);
         setDetailsOpen(true);
@@ -287,14 +302,33 @@ const OrdersPage = () => {
     };
 
     const handleSaveEdit = () => {
+        const subtotal = editFormData.items.reduce((sum: number, item: any) => sum + ((Number(item.price) || 0) * (Number(item.quantity) || 1)), 0);
+        let discountAmount = 0;
+        const numDiscount = Number(editFormData.discount) || 0;
+        if (numDiscount > 0) {
+            if (editFormData.discountType === 'percentage') {
+                discountAmount = (subtotal * numDiscount) / 100;
+            } else {
+                discountAmount = numDiscount;
+            }
+        }
+        const numAdjustment = Number(editFormData.adjustment) || 0;
+        const finalTotal = Math.max(0, subtotal - discountAmount + numAdjustment);
+
         const updatedOrder = {
             customer: editFormData.customer,
-            items: editFormData.items.map(item => ({
+            items: editFormData.items.map((item: any) => ({
                 product: item.product,
                 size: item.size,
                 quantity: item.quantity,
-                price: item.price
-            }))
+                price: Number(item.price) || 0,
+                originalPrice: item.originalPrice !== undefined ? item.originalPrice : item.price
+            })),
+            discount: discountAmount,
+            discountType: editFormData.discountType || 'fixed',
+            adjustment: numAdjustment,
+            totalPrice: finalTotal,
+            negotiationNotes: editFormData.negotiationNotes || ''
         };
         if (selectedOrder) {
             updateOrder(selectedOrder._id, updatedOrder);
@@ -683,22 +717,17 @@ const OrdersPage = () => {
                             {/* Items */}
                             <Typography variant="subtitle2" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                 <InventoryIcon fontSize="small" />
-                                Order Items
+                                Order Items &amp; Pricing
                             </Typography>
                             <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
                                 {editMode ? (
                                     <>
-                                        {editFormData.items.map((item, idx) => (
-                                            <Box key={idx} sx={{ mb: 2, pb: 1, borderBottom: idx < editFormData.items.length - 1 ? 1 : 0, borderColor: 'divider' }}>
-                                                <TextField
-                                                    fullWidth
-                                                    label="Product Name"
-                                                    value={item.productName}
-                                                    disabled
-                                                    size="small"
-                                                    sx={{ mb: 1 }}
-                                                />
-                                                <Grid container spacing={1}>
+                                        {editFormData.items.map((item: any, idx: number) => (
+                                            <Box key={idx} sx={{ mb: 2, pb: 2, borderBottom: idx < editFormData.items.length - 1 ? 1 : 0, borderColor: 'divider' }}>
+                                                <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
+                                                    {item.productName || `Item #${idx + 1}`}
+                                                </Typography>
+                                                <Grid container spacing={1.5}>
                                                     <Grid item xs={4}>
                                                         <TextField
                                                             fullWidth
@@ -714,60 +743,193 @@ const OrdersPage = () => {
                                                             label="Quantity"
                                                             type="number"
                                                             value={item.quantity}
-                                                            onChange={(e) => handleEditChange('quantity', parseInt(e.target.value), idx)}
+                                                            onChange={(e) => handleEditChange('quantity', parseInt(e.target.value) || 1, idx)}
                                                             size="small"
                                                         />
                                                     </Grid>
                                                     <Grid item xs={4}>
                                                         <TextField
                                                             fullWidth
-                                                            label="Price"
+                                                            label="Unit Price (ETB)"
                                                             type="number"
                                                             value={item.price}
-                                                            onChange={(e) => handleEditChange('price', parseFloat(e.target.value), idx)}
+                                                            onChange={(e) => handleEditChange('price', parseFloat(e.target.value) || 0, idx)}
                                                             size="small"
                                                         />
                                                     </Grid>
                                                 </Grid>
                                             </Box>
                                         ))}
+
+                                        {/* Order-Level Adjustments in Edit Mode */}
+                                        <Divider sx={{ my: 2 }} />
+                                        <Typography variant="subtitle2" fontWeight={600} gutterBottom>
+                                            Order-Level Discounts &amp; Adjustments
+                                        </Typography>
+                                        <Grid container spacing={1.5} sx={{ mt: 0.5 }}>
+                                            <Grid item xs={7}>
+                                                <TextField
+                                                    fullWidth
+                                                    label="Order Discount"
+                                                    type="number"
+                                                    size="small"
+                                                    value={editFormData.discount}
+                                                    onChange={(e) => setEditFormData({ ...editFormData, discount: parseFloat(e.target.value) || 0 })}
+                                                />
+                                            </Grid>
+                                            <Grid item xs={5}>
+                                                <FormControl size="small" fullWidth>
+                                                    <InputLabel>Type</InputLabel>
+                                                    <Select
+                                                        value={editFormData.discountType || 'fixed'}
+                                                        label="Type"
+                                                        onChange={(e) => setEditFormData({ ...editFormData, discountType: e.target.value as any })}
+                                                    >
+                                                        <MenuItem value="fixed">Fixed ETB</MenuItem>
+                                                        <MenuItem value="percentage">Percent %</MenuItem>
+                                                    </Select>
+                                                </FormControl>
+                                            </Grid>
+                                            <Grid item xs={12}>
+                                                <TextField
+                                                    fullWidth
+                                                    label="Adjustment / Extra Fee (ETB)"
+                                                    type="number"
+                                                    size="small"
+                                                    value={editFormData.adjustment}
+                                                    onChange={(e) => setEditFormData({ ...editFormData, adjustment: parseFloat(e.target.value) || 0 })}
+                                                    placeholder="e.g. +200 delivery fee"
+                                                />
+                                            </Grid>
+                                            <Grid item xs={12}>
+                                                <TextField
+                                                    fullWidth
+                                                    label="Negotiation Notes"
+                                                    size="small"
+                                                    value={editFormData.negotiationNotes}
+                                                    onChange={(e) => setEditFormData({ ...editFormData, negotiationNotes: e.target.value })}
+                                                    placeholder="e.g. Reason for discount or deal terms"
+                                                />
+                                            </Grid>
+                                        </Grid>
                                     </>
                                 ) : (
-                                    selectedOrder.items?.map((item, i) => (
-                                        <Box key={i} sx={{ mb: 1 }}>
-                                            <Typography>
-                                                <strong>{typeof item.product === 'object' && item.product !== null ? item.product.name : ''}</strong> - Size: {item.size}
-                                            </Typography>
-                                            <Typography variant="body2" color="text.secondary">
-                                                Quantity: {item.quantity} × ₹{item.price?.toLocaleString()}
-                                            </Typography>
-                                            {i < selectedOrder.items.length - 1 && <Divider sx={{ my: 1 }} />}
-                                        </Box>
-                                    ))
+                                    <>
+                                        {selectedOrder.items?.map((item: any, i: number) => {
+                                            const origPrice = item.originalPrice;
+                                            const hasVariance = origPrice && origPrice !== item.price;
+                                            const isDiscounted = hasVariance && item.price < origPrice;
+                                            const isMarkedUp = hasVariance && item.price > origPrice;
+
+                                            return (
+                                                <Box key={i} sx={{ mb: 1.5 }}>
+                                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                                        <Box>
+                                                            <Typography fontWeight={600}>
+                                                                {typeof item.product === 'object' && item.product !== null ? item.product.name : 'Item'}
+                                                                <Chip size="small" label={`Size: ${item.size}`} sx={{ ml: 1, height: 20, fontSize: '0.72rem' }} />
+                                                            </Typography>
+                                                            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
+                                                                Qty: {item.quantity} × {item.price?.toLocaleString()} ETB
+                                                                {hasVariance && (
+                                                                    <span style={{ textDecoration: 'line-through', marginLeft: 8, opacity: 0.6 }}>
+                                                                        list: {origPrice.toLocaleString()} ETB
+                                                                    </span>
+                                                                )}
+                                                            </Typography>
+                                                        </Box>
+
+                                                        <Box sx={{ textAlign: 'right' }}>
+                                                            <Typography variant="body2" fontWeight={700}>
+                                                                {((item.price || 0) * item.quantity).toLocaleString()} ETB
+                                                            </Typography>
+                                                            {isDiscounted && (
+                                                                <Chip
+                                                                    size="small"
+                                                                    color="success"
+                                                                    label={`-${((origPrice - item.price) * item.quantity).toLocaleString()} ETB`}
+                                                                    sx={{ height: 18, fontSize: '0.68rem', mt: 0.25 }}
+                                                                />
+                                                            )}
+                                                            {isMarkedUp && (
+                                                                <Chip
+                                                                    size="small"
+                                                                    color="primary"
+                                                                    label={`+${((item.price - origPrice) * item.quantity).toLocaleString()} ETB`}
+                                                                    sx={{ height: 18, fontSize: '0.68rem', mt: 0.25 }}
+                                                                />
+                                                            )}
+                                                        </Box>
+                                                    </Box>
+                                                    {i < (selectedOrder.items?.length || 0) - 1 && <Divider sx={{ my: 1.5 }} />}
+                                                </Box>
+                                            );
+                                        })}
+
+                                        {/* Negotiation Notes in View Mode */}
+                                        {selectedOrder.negotiationNotes && (
+                                            <Box sx={{ mt: 2, p: 1.5, bgcolor: 'action.hover', borderRadius: 1.5, borderLeft: '3px solid', borderColor: 'primary.main' }}>
+                                                <Typography variant="caption" fontWeight={600} color="text.secondary" display="block">
+                                                    Negotiation Notes:
+                                                </Typography>
+                                                <Typography variant="body2">
+                                                    {selectedOrder.negotiationNotes}
+                                                </Typography>
+                                            </Box>
+                                        )}
+                                    </>
                                 )}
                             </Paper>
 
-                            {/* Total */}
+                            {/* Total & Pricing Breakdown */}
                             <Box 
-                                display="flex" 
-                                justifyContent="space-between" 
-                                alignItems="center"
                                 sx={{ 
                                     p: 2, 
                                     bgcolor: alpha(theme.palette.primary.main, 0.05),
-                                    borderRadius: 1,
-                                    mb: 2
+                                    borderRadius: 1.5,
+                                    mb: 2,
+                                    border: '1px solid',
+                                    borderColor: alpha(theme.palette.primary.main, 0.15)
                                 }}
                             >
-                                <Typography variant="h6">
-                                    Total Amount
-                                </Typography>
-                                <Typography variant="h5" color="primary" fontWeight="bold">
-                                    {(editMode 
-                                        ? editFormData.items.reduce((sum, item) => sum + (item.price * item.quantity), 0)
-                                        : selectedOrder.totalPrice || 0
-                                    ).toLocaleString()} ETB
-                                </Typography>
+                                {!editMode && (((selectedOrder.discount || 0) > 0) || (selectedOrder.adjustment !== undefined && selectedOrder.adjustment !== 0)) && (
+                                    <Stack spacing={0.75} sx={{ mb: 1.5, pb: 1.5, borderBottom: '1px dashed', borderColor: 'divider' }}>
+                                        <Box display="flex" justifyContent="space-between">
+                                            <Typography variant="body2" color="text.secondary">Items Subtotal</Typography>
+                                            <Typography variant="body2" fontWeight={600}>
+                                                {(selectedOrder.subtotal || selectedOrder.totalPrice).toLocaleString()} ETB
+                                            </Typography>
+                                        </Box>
+                                        {(selectedOrder.discount || 0) > 0 && (
+                                            <Box display="flex" justifyContent="space-between" color="success.main">
+                                                <Typography variant="body2">Order Discount</Typography>
+                                                <Typography variant="body2" fontWeight={600}>
+                                                    -{(selectedOrder.discount || 0).toLocaleString()} ETB
+                                                </Typography>
+                                            </Box>
+                                        )}
+                                        {selectedOrder.adjustment !== undefined && selectedOrder.adjustment !== 0 && (
+                                            <Box display="flex" justifyContent="space-between" color={selectedOrder.adjustment > 0 ? "primary.main" : "error.main"}>
+                                                <Typography variant="body2">Adjustment / Charges</Typography>
+                                                <Typography variant="body2" fontWeight={600}>
+                                                    {selectedOrder.adjustment > 0 ? `+${selectedOrder.adjustment.toLocaleString()}` : selectedOrder.adjustment.toLocaleString()} ETB
+                                                </Typography>
+                                            </Box>
+                                        )}
+                                    </Stack>
+                                )}
+
+                                <Box display="flex" justifyContent="space-between" alignItems="center">
+                                    <Typography variant="h6">
+                                        Total Payable Amount
+                                    </Typography>
+                                    <Typography variant="h5" color="primary" fontWeight="bold">
+                                        {(editMode 
+                                            ? Math.max(0, editFormData.items.reduce((sum: number, item: any) => sum + ((Number(item.price) || 0) * (Number(item.quantity) || 1)), 0) - (Number(editFormData.discount) || 0) + (Number(editFormData.adjustment) || 0))
+                                            : selectedOrder.totalPrice || 0
+                                        ).toLocaleString()} ETB
+                                    </Typography>
+                                </Box>
                             </Box>
 
                             {/* Status Update — Admin only */}

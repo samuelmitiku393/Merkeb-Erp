@@ -50,6 +50,7 @@ interface OrderItemState {
   selectedProduct: Product | null;
   size: string;
   quantity: number;
+  unitPrice: number;
   loading: boolean;
 }
 
@@ -79,8 +80,16 @@ const QuickOrder = () => {
 
   // Items State
   const [items, setItems] = useState<OrderItemState[]>([
-    { productQuery: "", productResults: [], selectedProduct: null, size: "", quantity: 1, loading: false }
+    { productQuery: "", productResults: [], selectedProduct: null, size: "", quantity: 1, unitPrice: 0, loading: false }
   ]);
+
+  // Order-level Negotiation & Pricing States
+  const [orderDiscount, setOrderDiscount] = useState<number | "">("");
+  const [discountType, setDiscountType] = useState<"fixed" | "percentage">("fixed");
+  const [orderAdjustment, setOrderAdjustment] = useState<number | "">("");
+  const [negotiationNotes, setNegotiationNotes] = useState("");
+
+  const [subtotal, setSubtotal] = useState(0);
   const [orderTotal, setOrderTotal] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [successDialog, setSuccessDialog] = useState(false);
@@ -89,16 +98,31 @@ const QuickOrder = () => {
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const productInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  // Calculate total
+  // Calculate subtotal and final total with discounts & adjustments
   useEffect(() => {
-    const total = items.reduce((sum, item) => {
+    const calculatedSubtotal = items.reduce((sum, item) => {
       if (item.selectedProduct && item.size && item.quantity) {
-        return sum + (item.selectedProduct.price * item.quantity);
+        const effectivePrice = typeof item.unitPrice === 'number' && item.unitPrice >= 0 ? item.unitPrice : (item.selectedProduct.price || 0);
+        return sum + (effectivePrice * item.quantity);
       }
       return sum;
     }, 0);
-    setOrderTotal(total);
-  }, [items]);
+    setSubtotal(calculatedSubtotal);
+
+    let discountAmount = 0;
+    const numDiscount = Number(orderDiscount) || 0;
+    if (numDiscount > 0) {
+      if (discountType === "percentage") {
+        discountAmount = (calculatedSubtotal * numDiscount) / 100;
+      } else {
+        discountAmount = numDiscount;
+      }
+    }
+
+    const numAdjustment = Number(orderAdjustment) || 0;
+    const finalTotal = Math.max(0, calculatedSubtotal - discountAmount + numAdjustment);
+    setOrderTotal(finalTotal);
+  }, [items, orderDiscount, discountType, orderAdjustment]);
 
   // Customer Search
   const handleCustomerSearch = (query: string) => {
@@ -191,13 +215,14 @@ const QuickOrder = () => {
     newItems[index].productResults = [];
     newItems[index].size = "";
     newItems[index].quantity = 1;
+    newItems[index].unitPrice = product.price || 0;
     setItems(newItems);
   };
 
   const addItem = () => {
     setItems([
       ...items,
-      { productQuery: "", productResults: [], selectedProduct: null, size: "", quantity: 1, loading: false }
+      { productQuery: "", productResults: [], selectedProduct: null, size: "", quantity: 1, unitPrice: 0, loading: false }
     ]);
     setTimeout(() => {
       productInputRefs.current[items.length]?.focus();
@@ -232,12 +257,18 @@ const QuickOrder = () => {
       const orderItems = items.map((item) => ({
         product: item.selectedProduct!._id,
         size: item.size,
-        quantity: Number(item.quantity)
+        quantity: Number(item.quantity),
+        price: typeof item.unitPrice === 'number' && item.unitPrice >= 0 ? item.unitPrice : item.selectedProduct!.price,
+        originalPrice: item.selectedProduct!.price || 0
       }));
 
       const res = await API.post("/orders", {
         customer: selectedCustomer._id,
-        items: orderItems
+        items: orderItems,
+        discount: Number(orderDiscount) || 0,
+        discountType,
+        adjustment: Number(orderAdjustment) || 0,
+        negotiationNotes: negotiationNotes.trim()
       });
 
       setCreatedOrder(res.data);
@@ -246,8 +277,11 @@ const QuickOrder = () => {
       // Reset form
       setSelectedCustomer(null);
       setCustomerQuery("");
+      setOrderDiscount("");
+      setOrderAdjustment("");
+      setNegotiationNotes("");
       setItems([
-        { productQuery: "", productResults: [], selectedProduct: null, size: "", quantity: 1, loading: false }
+        { productQuery: "", productResults: [], selectedProduct: null, size: "", quantity: 1, unitPrice: 0, loading: false }
       ]);
     } catch (error) {
       console.error("Error creating order:", error);
@@ -597,36 +631,112 @@ const QuickOrder = () => {
                         </Box>
                       </Box>
 
-                      {/* Size and Quantity */}
-                      <Stack
-                        direction={isMobile ? 'column' : 'row'}
-                        spacing={2}
-                      >
-                        <FormControl size="small" fullWidth={isMobile}>
-                          <InputLabel>Size</InputLabel>
-                          <Select
-                            value={item.size}
-                            onChange={(e) => updateItem(index, "size", e.target.value)}
-                            label="Size"
-                          >
-                            {item.selectedProduct.sizes.map((sizeObj, i) => (
-                              <MenuItem key={i} value={sizeObj.size}>
-                                Size {sizeObj.size} ({sizeObj.stock} in stock)
-                              </MenuItem>
-                            ))}
-                          </Select>
-                        </FormControl>
+                      {/* Size, Quantity and Negotiated Price Controls */}
+                      <Stack spacing={2}>
+                        <Stack
+                          direction={isMobile ? 'column' : 'row'}
+                          spacing={2}
+                          alignItems={isMobile ? 'stretch' : 'center'}
+                        >
+                          <FormControl size="small" fullWidth={isMobile} sx={{ flex: 1 }}>
+                            <InputLabel>Size</InputLabel>
+                            <Select
+                              value={item.size}
+                              onChange={(e) => updateItem(index, "size", e.target.value)}
+                              label="Size"
+                            >
+                              {item.selectedProduct.sizes.map((sizeObj, i) => (
+                                <MenuItem key={i} value={sizeObj.size}>
+                                  Size {sizeObj.size} ({sizeObj.stock} in stock)
+                                </MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
 
-                        <TextField
-                          type="number"
-                          label="Quantity"
-                          value={item.quantity}
-                          onChange={(e) => updateItem(index, "quantity", Math.max(1, parseInt(e.target.value) || 1))}
-                          size="small"
-                          fullWidth={isMobile}
-                          sx={{ minWidth: isMobile ? '100%' : 100 }}
-                          InputProps={{ inputProps: { min: 1 } }}
-                        />
+                          <TextField
+                            type="number"
+                            label="Quantity"
+                            value={item.quantity}
+                            onChange={(e) => updateItem(index, "quantity", Math.max(1, parseInt(e.target.value) || 1))}
+                            size="small"
+                            fullWidth={isMobile}
+                            sx={{ width: isMobile ? '100%' : 110 }}
+                            InputProps={{ inputProps: { min: 1 } }}
+                          />
+
+                          <TextField
+                            type="number"
+                            label="Unit Price (ETB)"
+                            value={item.unitPrice}
+                            onChange={(e) => {
+                              const val = parseFloat(e.target.value);
+                              updateItem(index, "unitPrice", isNaN(val) ? 0 : Math.max(0, val));
+                            }}
+                            size="small"
+                            fullWidth={isMobile}
+                            sx={{ width: isMobile ? '100%' : 150 }}
+                            InputProps={{
+                              inputProps: { min: 0, step: "any" },
+                              endAdornment: <InputAdornment position="end">ETB</InputAdornment>
+                            }}
+                            helperText="Negotiable"
+                          />
+                        </Stack>
+
+                        {/* Price Negotiation Status Badge & Line Total */}
+                        <Box sx={{
+                          p: 1.25,
+                          borderRadius: 1.5,
+                          bgcolor: 'background.default',
+                          border: '1px solid',
+                          borderColor: 'divider',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          flexWrap: 'wrap',
+                          gap: 1
+                        }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                            {item.unitPrice < item.selectedProduct.price && (
+                              <Chip
+                                size="small"
+                                color="success"
+                                label={`Discount: -${(item.selectedProduct.price - item.unitPrice).toLocaleString()} ETB (-${Math.round(((item.selectedProduct.price - item.unitPrice) / item.selectedProduct.price) * 100)}%)`}
+                                sx={{ fontWeight: 600, height: 24, fontSize: '0.75rem' }}
+                              />
+                            )}
+                            {item.unitPrice > item.selectedProduct.price && (
+                              <Chip
+                                size="small"
+                                color="primary"
+                                label={`Markup: +${(item.unitPrice - item.selectedProduct.price).toLocaleString()} ETB (+${Math.round(((item.unitPrice - item.selectedProduct.price) / item.selectedProduct.price) * 100)}%)`}
+                                sx={{ fontWeight: 600, height: 24, fontSize: '0.75rem' }}
+                              />
+                            )}
+                            {item.unitPrice === item.selectedProduct.price && (
+                              <Chip
+                                size="small"
+                                variant="outlined"
+                                label="Catalog List Price"
+                                sx={{ height: 24, fontSize: '0.75rem' }}
+                              />
+                            )}
+
+                            {item.unitPrice !== item.selectedProduct.price && (
+                              <Button
+                                size="small"
+                                sx={{ textTransform: 'none', py: 0, fontSize: '0.75rem' }}
+                                onClick={() => updateItem(index, "unitPrice", item.selectedProduct!.price || 0)}
+                              >
+                                Reset to {item.selectedProduct.price} ETB
+                              </Button>
+                            )}
+                          </Box>
+
+                          <Typography variant="body2" fontWeight={700} color="primary.main">
+                            Line: {((item.unitPrice || 0) * (item.quantity || 1)).toLocaleString()} ETB
+                          </Typography>
+                        </Box>
                       </Stack>
                     </>
                   )}
@@ -635,7 +745,7 @@ const QuickOrder = () => {
             </Stack>
           </Paper>
 
-          {/* Order Summary */}
+          {/* Order Summary & Negotiation Section */}
           <Paper
             sx={{
               p: isMobile ? 2 : 3,
@@ -655,7 +765,7 @@ const QuickOrder = () => {
               }}
             >
               <ReceiptIcon color="primary" fontSize={isMobile ? 'small' : 'medium'} />
-              Order Summary
+              Order Summary &amp; Negotiation
             </Typography>
 
             {/* Customer Info in Summary */}
@@ -680,7 +790,7 @@ const QuickOrder = () => {
             <Divider sx={{ mb: 2 }} />
 
             {/* Items List */}
-            <Box sx={{ maxHeight: isMobile ? 'none' : 300, overflow: 'auto' }}>
+            <Box sx={{ maxHeight: isMobile ? 'none' : 240, overflow: 'auto' }}>
               {items.map((item, index) => (
                 item.selectedProduct && item.size && (
                   <Box
@@ -698,11 +808,16 @@ const QuickOrder = () => {
                         {item.selectedProduct.name}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
-                        Size: {item.size} × {item.quantity}
+                        Size: {item.size} × {item.quantity} @ {item.unitPrice} ETB
+                        {item.unitPrice !== item.selectedProduct.price && (
+                          <span style={{ textDecoration: 'line-through', marginLeft: 6, opacity: 0.7 }}>
+                            {item.selectedProduct.price} ETB
+                          </span>
+                        )}
                       </Typography>
                     </Box>
                     <Typography variant="body2" fontWeight="medium" sx={{ ml: 2 }}>
-                      {(item.selectedProduct.price * item.quantity).toLocaleString()} ETB
+                      {((item.unitPrice || 0) * item.quantity).toLocaleString()} ETB
                     </Typography>
                   </Box>
                 )
@@ -717,6 +832,109 @@ const QuickOrder = () => {
 
             <Divider sx={{ my: 2 }} />
 
+            {/* Negotiation & Adjustment Inputs */}
+            <Box sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 2, mb: 2, border: '1px solid', borderColor: 'divider' }}>
+              <Typography variant="subtitle2" fontWeight={600} gutterBottom sx={{ mb: 1.5 }}>
+                Order-Level Negotiation &amp; Adjustments
+              </Typography>
+
+              <Grid container spacing={1.5}>
+                <Grid item xs={7}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    type="number"
+                    label="Order Discount"
+                    value={orderDiscount}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value);
+                      setOrderDiscount(isNaN(val) ? "" : Math.max(0, val));
+                    }}
+                    InputProps={{
+                      inputProps: { min: 0 },
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          {discountType === 'percentage' ? '%' : 'ETB'}
+                        </InputAdornment>
+                      )
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={5}>
+                  <FormControl size="small" fullWidth>
+                    <InputLabel>Type</InputLabel>
+                    <Select
+                      value={discountType}
+                      label="Type"
+                      onChange={(e) => setDiscountType(e.target.value as "fixed" | "percentage")}
+                    >
+                      <MenuItem value="fixed">Fixed ETB</MenuItem>
+                      <MenuItem value="percentage">Percent %</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    type="number"
+                    label="Adjustment / Extra Fee (e.g. Delivery, Rush)"
+                    value={orderAdjustment}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value);
+                      setOrderAdjustment(isNaN(val) ? "" : val);
+                    }}
+                    InputProps={{
+                      endAdornment: <InputAdornment position="end">ETB</InputAdornment>
+                    }}
+                    placeholder="+200 for delivery or customization"
+                  />
+                </Grid>
+
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Negotiation Notes (optional)"
+                    value={negotiationNotes}
+                    onChange={(e) => setNegotiationNotes(e.target.value)}
+                    placeholder="e.g. Bulk discount agreed for 10 units"
+                  />
+                </Grid>
+              </Grid>
+            </Box>
+
+            {/* Pricing Breakdown */}
+            <Stack spacing={1} sx={{ mb: 2 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Typography variant="body2" color="text.secondary">Items Subtotal</Typography>
+                <Typography variant="body2" fontWeight={600}>{subtotal.toLocaleString()} ETB</Typography>
+              </Box>
+
+              {Number(orderDiscount) > 0 && (
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', color: 'success.main' }}>
+                  <Typography variant="body2">
+                    Order Discount {discountType === 'percentage' ? `(${orderDiscount}%)` : ''}
+                  </Typography>
+                  <Typography variant="body2" fontWeight={600}>
+                    -{discountType === 'percentage' ? ((subtotal * Number(orderDiscount)) / 100).toLocaleString() : Number(orderDiscount).toLocaleString()} ETB
+                  </Typography>
+                </Box>
+              )}
+
+              {Number(orderAdjustment) !== 0 && (
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', color: Number(orderAdjustment) > 0 ? 'primary.main' : 'error.main' }}>
+                  <Typography variant="body2">Adjustment / Charges</Typography>
+                  <Typography variant="body2" fontWeight={600}>
+                    {Number(orderAdjustment) > 0 ? `+${Number(orderAdjustment).toLocaleString()}` : Number(orderAdjustment).toLocaleString()} ETB
+                  </Typography>
+                </Box>
+              )}
+            </Stack>
+
+            <Divider sx={{ mb: 2 }} />
+
             {/* Total */}
             <Box sx={{
               display: 'flex',
@@ -725,7 +943,7 @@ const QuickOrder = () => {
               mb: 2
             }}>
               <Typography variant="h6" sx={{ fontSize: isMobile ? '1.1rem' : '1.25rem' }}>
-                Total
+                Final Payable Total
               </Typography>
               <Typography
                 variant="h5"

@@ -83,6 +83,8 @@ export interface OrderItem {
   size: string;
   quantity: number;
   price: number;
+  originalPrice?: number;
+  discount?: number;
 }
 
 export type OrderStatus =
@@ -105,7 +107,12 @@ export interface Order {
   status: OrderStatus;
   paymentStatus?: 'pending' | 'paid' | 'refunded';
   deliveryStatus?: 'pending' | 'shipped' | 'delivered';
+  subtotal?: number;
+  discount?: number;
+  discountType?: 'fixed' | 'percentage';
+  adjustment?: number;
   totalPrice: number;
+  negotiationNotes?: string;
   createdAt?: string;
   updatedAt?: string;
   cancelledAt?: string;

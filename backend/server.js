@@ -191,9 +191,7 @@ app.get("/health", getSystemHealth);
 app.use("/api/auth", authRoutes);
 app.use("/auth", authRoutes);
 
-// ===== PROTECTED ROUTES =====
-// All routes below require authentication (check both /api and root paths)
-app.use(["/api", "/products", "/customers", "/orders", "/analytics", "/inventory", "/notifications", "/reports", "/audit", "/me"], authenticateToken);
+app.use(["/api", "/products", "/customers", "/orders", "/analytics", "/inventory", "/notifications", "/reports", "/audit", "/me", "/admin"], authenticateToken);
 
 // Protected API routes (accessible with or without /api prefix)
 app.use(["/api/products", "/products"], productRoutes);

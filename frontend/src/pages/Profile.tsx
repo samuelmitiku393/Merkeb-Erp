@@ -150,6 +150,8 @@ const Profile = () => {
     // Database Reset & Management states
     const [dbStats, setDbStats] = useState<DatabaseStats | null>(null);
     const [dbStatsLoading, setDbStatsLoading] = useState(false);
+    const [backupsList, setBackupsList] = useState<any[]>([]);
+    const [backupsLoading, setBackupsLoading] = useState(false);
     const [resetDialogOpen, setResetDialogOpen] = useState(false);
     const [resetConfirmationText, setResetConfirmationText] = useState("");
     const [resetBackupOption, setResetBackupOption] = useState(true);
@@ -235,13 +237,43 @@ const Profile = () => {
         setDbStatsLoading(true);
         try {
             const res = await API.get('/admin/database-stats');
-            if (res.data?.success) {
-                setDbStats(res.data.stats);
+            const data = res.data;
+            if (data?.stats) {
+                setDbStats(data.stats);
+            } else if (data?.data) {
+                setDbStats(data.data);
+            } else if (data && typeof data.orders === 'number') {
+                setDbStats(data);
             }
         } catch (err) {
             console.error("Failed to fetch database stats:", err);
+            try {
+                const fallbackRes = await API.get('/admin/stats');
+                if (fallbackRes.data?.stats) {
+                    setDbStats(fallbackRes.data.stats);
+                } else if (fallbackRes.data && typeof fallbackRes.data.orders === 'number') {
+                    setDbStats(fallbackRes.data);
+                }
+            } catch (fallbackErr) {
+                console.error("Fallback stats fetch also failed:", fallbackErr);
+            }
         } finally {
             setDbStatsLoading(false);
+        }
+    };
+
+    // Fetch existing backup snapshots
+    const fetchBackups = async () => {
+        setBackupsLoading(true);
+        try {
+            const res = await API.get('/admin/backups');
+            if (res.data?.backups && Array.isArray(res.data.backups)) {
+                setBackupsList(res.data.backups);
+            }
+        } catch (err) {
+            console.error("Failed to fetch backups list:", err);
+        } finally {
+            setBackupsLoading(false);
         }
     };
 
@@ -272,6 +304,7 @@ const Profile = () => {
                 setResetDialogOpen(false);
                 setResetConfirmationText("");
                 fetchDatabaseStats();
+                fetchBackups();
                 fetchAuditLogs();
                 fetchAuditStats();
             } else {
@@ -304,6 +337,8 @@ const Profile = () => {
                     message: 'Database backup snapshot saved successfully!',
                     severity: 'success'
                 });
+                fetchBackups();
+                fetchDatabaseStats();
             }
         } catch (err: any) {
             console.error("Manual backup error:", err);
@@ -360,12 +395,15 @@ const Profile = () => {
         setActiveFiltersCount(count);
     }, [auditFilters]);
 
-    // Fetch audit logs when tab changes to audit trail
+    // Fetch tab-specific data when tab changes
     useEffect(() => {
         if (activeTab === 1) {
             fetchAuditLogs();
             fetchAuditStats();
-        } else if (activeTab === 3 || activeTab === 0) {
+        } else if (activeTab === 3) {
+            fetchDatabaseStats();
+            fetchBackups();
+        } else if (activeTab === 0) {
             fetchDatabaseStats();
         }
     }, [activeTab, auditPage, auditRowsPerPage, auditFilters]);
@@ -2044,7 +2082,7 @@ const Profile = () => {
 
                         {/* Safety Backup */}
                         <Paper sx={{ p: 3, borderRadius: 2, mb: 3, border: '1px solid', borderColor: 'info.light' }}>
-                            <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={2}>
+                            <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={2} mb={backupsList.length > 0 ? 2 : 0}>
                                 <Stack direction="row" spacing={1.5} alignItems="flex-start">
                                     <BackupIcon color="info" sx={{ mt: 0.25 }} />
                                     <Box>
@@ -2065,6 +2103,51 @@ const Profile = () => {
                                     {backupLoading ? 'Saving…' : 'Backup Now'}
                                 </Button>
                             </Stack>
+
+                            {/* Existing Backups List */}
+                            {backupsList.length > 0 && (
+                                <Box sx={{ mt: 2, pt: 2, borderTop: '1px dashed', borderColor: 'divider' }}>
+                                    <Typography variant="caption" fontWeight={600} color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                                        Recent Backups ({backupsList.length})
+                                    </Typography>
+                                    <Stack spacing={1}>
+                                        {backupsList.slice(0, 3).map((b, idx) => (
+                                            <Paper
+                                                key={b.name || idx}
+                                                variant="outlined"
+                                                sx={{
+                                                    p: 1.25,
+                                                    borderRadius: 1.5,
+                                                    display: 'flex',
+                                                    justifyContent: 'space-between',
+                                                    alignItems: 'center',
+                                                    bgcolor: 'background.default',
+                                                    fontSize: '0.85rem'
+                                                }}
+                                            >
+                                                <Stack direction="row" spacing={1} alignItems="center">
+                                                    <CheckCircleIcon color="success" sx={{ fontSize: 16 }} />
+                                                    <Typography variant="body2" fontWeight={500}>
+                                                        {b.name}
+                                                    </Typography>
+                                                </Stack>
+                                                <Stack direction="row" spacing={1.5} alignItems="center">
+                                                    <Chip
+                                                        size="small"
+                                                        label={`${b.totalDocuments ?? 0} docs`}
+                                                        variant="outlined"
+                                                        color="info"
+                                                        sx={{ height: 20, fontSize: '0.72rem' }}
+                                                    />
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        {b.timestamp ? format(new Date(b.timestamp), 'MMM dd, HH:mm') : ''}
+                                                    </Typography>
+                                                </Stack>
+                                            </Paper>
+                                        ))}
+                                    </Stack>
+                                </Box>
+                            )}
                         </Paper>
 
                         {/* Danger Zone – Reset */}

@@ -12,7 +12,7 @@ const router = express.Router();
 
 // Trigger manual backup
 router.post(
-  "/backup",
+  ["/backup", "/create-backup"],
   authenticateToken,
   auditLog("CREATE", "SETTINGS", "Manual database backup triggered"),
   async (req, res) => {
@@ -36,7 +36,7 @@ router.post(
 
 // List existing backups
 router.get(
-  "/backups",
+  ["/backups", "/backup/list"],
   authenticateToken,
   async (req, res) => {
     try {
@@ -57,27 +57,35 @@ router.get(
 
 // Get current database record counts
 router.get(
-  "/database-stats",
+  ["/database-stats", "/stats", "/database/stats"],
   authenticateToken,
   async (req, res) => {
     try {
       const [orders, products, customers, auditLogs, nonAdminUsers] = await Promise.all([
-        Order.countDocuments(),
-        Product.countDocuments(),
-        Customer.countDocuments(),
-        AuditLog.countDocuments(),
-        User.countDocuments({ role: { $ne: "admin" } }),
+        Order.countDocuments().catch(() => 0),
+        Product.countDocuments().catch(() => 0),
+        Customer.countDocuments().catch(() => 0),
+        AuditLog.countDocuments().catch(() => 0),
+        User.countDocuments({ role: { $ne: "admin" } }).catch(() => 0),
       ]);
+
+      const stats = {
+        orders,
+        products,
+        customers,
+        auditLogs,
+        nonAdminUsers,
+      };
 
       res.json({
         success: true,
-        stats: {
-          orders,
-          products,
-          customers,
-          auditLogs,
-          nonAdminUsers,
-        },
+        stats,
+        data: stats,
+        orders,
+        products,
+        customers,
+        auditLogs,
+        nonAdminUsers,
       });
     } catch (error) {
       console.error("Error fetching database stats:", error);
@@ -90,9 +98,9 @@ router.get(
   }
 );
 
-// Full Database Reset (deletes test orders, products, customers, audit logs; preserves admin accounts)
+// Full Database Reset (deletes test orders, products, customers, audit logs; preserves user accounts)
 router.post(
-  "/reset-database",
+  ["/reset-database", "/reset"],
   authenticateToken,
   async (req, res) => {
     try {
@@ -109,11 +117,11 @@ router.post(
 
       // Count records before wipe
       const [ordersBefore, productsBefore, customersBefore, auditLogsBefore, nonAdminUsersBefore] = await Promise.all([
-        Order.countDocuments(),
-        Product.countDocuments(),
-        Customer.countDocuments(),
-        AuditLog.countDocuments(),
-        deleteNonAdminUsers ? User.countDocuments({ role: { $ne: "admin" } }) : Promise.resolve(0),
+        Order.countDocuments().catch(() => 0),
+        Product.countDocuments().catch(() => 0),
+        Customer.countDocuments().catch(() => 0),
+        AuditLog.countDocuments().catch(() => 0),
+        deleteNonAdminUsers ? User.countDocuments({ role: { $ne: "admin" } }).catch(() => 0) : Promise.resolve(0),
       ]);
 
       // Wipe transactional test data
@@ -130,10 +138,10 @@ router.post(
         await AuditLog.create({
           action: "DELETE",
           entity: "SETTINGS",
-          performedBy: req.user.id || req.user._id,
-          performedByUsername: req.user.username || "admin",
-          performedByRole: req.user.role || "admin",
-          description: `Full database reset performed by ${req.user.username || "admin"}. Wiped ${ordersBefore} orders, ${productsBefore} products, ${customersBefore} customers, and ${auditLogsBefore} audit logs.`,
+          performedBy: req.user?.id || req.user?._id,
+          performedByUsername: req.user?.username || "admin",
+          performedByRole: req.user?.role === "admin" ? "admin" : "user",
+          description: `Full database reset performed by ${req.user?.username || "user"}. Wiped ${ordersBefore} orders, ${productsBefore} products, ${customersBefore} customers, and ${auditLogsBefore} audit logs.`,
           timestamp: new Date(),
         });
       } catch (logErr) {
