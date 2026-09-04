@@ -18,6 +18,7 @@ import {
     Snackbar,
     Switch,
     useTheme,
+    useMediaQuery,
     Container,
     Stack,
     Badge,
@@ -45,6 +46,8 @@ import {
     Card,
     CardContent,
     LinearProgress,
+    Checkbox,
+    FormControlLabel,
 } from "@mui/material";
 import {
     Person as PersonIcon,
@@ -77,13 +80,33 @@ import {
     Download as DownloadIcon,
     CalendarMonth as CalendarIcon,
     TrendingUp as TrendingUpIcon,
+    DeleteForever as DeleteForeverIcon,
+    Storage as StorageIcon,
+    WarningAmber as WarningAmberIcon,
+    ArrowForward as ArrowForwardIcon,
+    ArrowBack as ArrowBackIcon,
+    Speed as SpeedIcon,
+    Backup as BackupIcon,
+    CheckCircleOutline as CheckCircleOutlineIcon,
+    ChevronRight as ChevronRightIcon,
+    ShoppingCart as ShoppingCartIcon,
+    Inventory as InventoryIcon,
+    People as PeopleIcon,
 } from "@mui/icons-material";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import API from "../api/axios";
 import { format } from "date-fns";
 import type { AuditLog, AuditFilters, AuditFilterOptions, AuditStats, SnackbarState } from "../types";
 import type { ChipProps } from "@mui/material";
+
+interface DatabaseStats {
+    orders: number;
+    products: number;
+    customers: number;
+    auditLogs: number;
+    nonAdminUsers: number;
+}
 
 interface ProfileData {
     username: string;
@@ -115,11 +138,24 @@ interface ReportPreview {
 
 const Profile = () => {
     const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+    const isTablet = useMediaQuery(theme.breakpoints.down('md'));
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
     const { user, logout } = useAuth();
 
-    // Tab state
+    // Tab state (0: Profile, 1: Audit Trail, 2: Reports, 3: Reset & System)
     const [activeTab, setActiveTab] = useState(0);
+
+    // Database Reset & Management states
+    const [dbStats, setDbStats] = useState<DatabaseStats | null>(null);
+    const [dbStatsLoading, setDbStatsLoading] = useState(false);
+    const [resetDialogOpen, setResetDialogOpen] = useState(false);
+    const [resetConfirmationText, setResetConfirmationText] = useState("");
+    const [resetBackupOption, setResetBackupOption] = useState(true);
+    const [resetUsersOption, setResetUsersOption] = useState(false);
+    const [resetLoading, setResetLoading] = useState(false);
+    const [backupLoading, setBackupLoading] = useState(false);
 
     // Profile states
     const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -194,6 +230,119 @@ const Profile = () => {
 
     const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i);
 
+    // Fetch database record statistics
+    const fetchDatabaseStats = async () => {
+        if (user?.role !== 'admin') return;
+        setDbStatsLoading(true);
+        try {
+            const res = await API.get('/admin/database-stats');
+            if (res.data?.success) {
+                setDbStats(res.data.stats);
+            }
+        } catch (err) {
+            console.error("Failed to fetch database stats:", err);
+        } finally {
+            setDbStatsLoading(false);
+        }
+    };
+
+    // Trigger full database reset
+    const handleResetDatabase = async () => {
+        if (resetConfirmationText.trim().toUpperCase() !== 'RESET') {
+            setSnackbar({
+                open: true,
+                message: 'Please type RESET to confirm',
+                severity: 'warning'
+            });
+            return;
+        }
+
+        setResetLoading(true);
+        try {
+            const res = await API.post('/admin/reset-database', {
+                createBackupBeforeReset: resetBackupOption,
+                deleteNonAdminUsers: resetUsersOption
+            });
+
+            if (res.data?.success) {
+                setSnackbar({
+                    open: true,
+                    message: res.data.message || 'Database reset completed! Test data has been cleared.',
+                    severity: 'success'
+                });
+                setResetDialogOpen(false);
+                setResetConfirmationText("");
+                fetchDatabaseStats();
+                fetchAuditLogs();
+                fetchAuditStats();
+            } else {
+                setSnackbar({
+                    open: true,
+                    message: res.data?.message || 'Failed to reset database',
+                    severity: 'error'
+                });
+            }
+        } catch (err: any) {
+            console.error("Reset database error:", err);
+            setSnackbar({
+                open: true,
+                message: err.response?.data?.message || 'Failed to reset database',
+                severity: 'error'
+            });
+        } finally {
+            setResetLoading(false);
+        }
+    };
+
+    // Trigger manual database backup
+    const handleManualBackup = async () => {
+        setBackupLoading(true);
+        try {
+            const res = await API.post('/admin/backup');
+            if (res.data?.success) {
+                setSnackbar({
+                    open: true,
+                    message: 'Database backup snapshot saved successfully!',
+                    severity: 'success'
+                });
+            }
+        } catch (err: any) {
+            console.error("Manual backup error:", err);
+            setSnackbar({
+                open: true,
+                message: err.response?.data?.message || 'Failed to create backup',
+                severity: 'error'
+            });
+        } finally {
+            setBackupLoading(false);
+        }
+    };
+
+    // Sync tab with URL search parameter (?tab=profile | audit | reports | system)
+    const tabParam = searchParams.get('tab');
+    useEffect(() => {
+        if (tabParam === 'audit' && user?.role === 'admin') {
+            setActiveTab(1);
+        } else if (tabParam === 'reports' && user?.role === 'admin') {
+            setActiveTab(2);
+        } else if (tabParam === 'system' && user?.role === 'admin') {
+            setActiveTab(3);
+        } else if (tabParam === 'profile' || !tabParam) {
+            setActiveTab(0);
+        }
+    }, [tabParam, user?.role]);
+
+    const changeTab = (newTab: number) => {
+        setActiveTab(newTab);
+        const tabsMap = ['profile', 'audit', 'reports', 'system'];
+        setSearchParams({ tab: tabsMap[newTab] || 'profile' });
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
+        changeTab(newValue);
+    };
+
     useEffect(() => {
         const savedSettings = localStorage.getItem('userSettings');
         if (savedSettings) {
@@ -217,12 +366,10 @@ const Profile = () => {
         if (activeTab === 1 && user?.role === 'admin') {
             fetchAuditLogs();
             fetchAuditStats();
+        } else if ((activeTab === 3 || activeTab === 0) && user?.role === 'admin') {
+            fetchDatabaseStats();
         }
     }, [activeTab, auditPage, auditRowsPerPage, auditFilters]);
-
-    const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
-        setActiveTab(newValue);
-    };
 
     const handleLogout = () => {
         logout();
@@ -596,32 +743,93 @@ const Profile = () => {
                     </Typography>
                 </Box>
 
-                {/* Tabs */}
-                <Tabs 
-                    value={activeTab} 
-                    onChange={handleTabChange}
-                    sx={{ mb: 3, borderBottom: 1, borderColor: 'divider' }}
+                {/* Sticky Mobile-Optimized Sub-Navigation Bar */}
+                <Box
+                    sx={{
+                        position: 'sticky',
+                        top: { xs: 56, sm: 64 },
+                        zIndex: 100,
+                        bgcolor: 'background.paper',
+                        backdropFilter: 'blur(16px)',
+                        backgroundColor: theme.palette.mode === 'dark' 
+                            ? 'rgba(22, 33, 62, 0.94)' 
+                            : 'rgba(255, 255, 255, 0.94)',
+                        borderBottom: '1px solid',
+                        borderColor: 'divider',
+                        mx: { xs: -2, sm: -3 },
+                        px: { xs: 1.5, sm: 3 },
+                        py: 0.8,
+                        mb: 3,
+                        boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+                    }}
                 >
-                    <Tab 
-                        icon={<PersonIcon />} 
-                        iconPosition="start" 
-                        label="Profile" 
-                    />
-                    {user?.role === 'admin' && (
-                        <Tab 
-                            icon={<HistoryIcon />} 
-                            iconPosition="start" 
-                            label="Audit Trail" 
+                    <Tabs
+                        value={activeTab}
+                        onChange={handleTabChange}
+                        variant="scrollable"
+                        scrollButtons="auto"
+                        allowScrollButtonsMobile
+                        sx={{
+                            minHeight: 46,
+                            '& .MuiTabs-indicator': {
+                                height: 3,
+                                borderRadius: 1.5,
+                            },
+                            '& .MuiTab-root': {
+                                minHeight: 44,
+                                textTransform: 'none',
+                                fontWeight: 600,
+                                fontSize: { xs: '0.82rem', sm: '0.9rem' },
+                                px: { xs: 1.75, sm: 2.5 },
+                                borderRadius: 2,
+                                transition: 'all 0.2s ease',
+                                '&:hover': {
+                                    bgcolor: 'action.hover',
+                                },
+                            }
+                        }}
+                    >
+                        <Tab
+                            icon={<PersonIcon fontSize="small" />}
+                            iconPosition="start"
+                            label="Profile"
                         />
-                    )}
-                    {user?.role === 'admin' && (
-                        <Tab 
-                            icon={<AssessmentIcon />} 
-                            iconPosition="start" 
-                            label="Reports" 
-                        />
-                    )}
-                </Tabs>
+                        {user?.role === 'admin' && (
+                            <Tab
+                                icon={
+                                    <Badge badgeContent={totalAuditLogs > 0 ? totalAuditLogs : null} color="primary" max={999}>
+                                        <HistoryIcon fontSize="small" />
+                                    </Badge>
+                                }
+                                iconPosition="start"
+                                label="Audit Trail"
+                            />
+                        )}
+                        {user?.role === 'admin' && (
+                            <Tab
+                                icon={<AssessmentIcon fontSize="small" />}
+                                iconPosition="start"
+                                label="Reports"
+                            />
+                        )}
+                        {user?.role === 'admin' && (
+                            <Tab
+                                icon={
+                                    <Badge badgeContent={dbStats ? (dbStats.orders + dbStats.products) : null} color="error" max={999}>
+                                        <StorageIcon fontSize="small" />
+                                    </Badge>
+                                }
+                                iconPosition="start"
+                                label="Reset & System"
+                                sx={{
+                                    color: activeTab === 3 ? 'error.main' : undefined,
+                                    '&.Mui-selected': { color: 'error.main' }
+                                }}
+                            />
+                        )}
+                    </Tabs>
+                </Box>
+
 
                 {/* Profile Tab Content */}
                 {activeTab === 0 && (
@@ -1067,65 +1275,111 @@ const Profile = () => {
                             </Button>
                         </Box>
 
-                        {/* Audit Log Table */}
-                        <Paper sx={{ borderRadius: 2 }}>
-                            <TableContainer>
-                                <Table>
-                                    <TableHead>
-                                        <TableRow>
-                                            <TableCell>Timestamp</TableCell>
-                                            <TableCell>User</TableCell>
-                                            <TableCell>Action</TableCell>
-                                            <TableCell>Entity</TableCell>
-                                            <TableCell>Description</TableCell>
-                                            <TableCell align="center">Actions</TableCell>
-                                        </TableRow>
-                                    </TableHead>
-                                    <TableBody>
-                                        {auditLoading ? (
-                                            <TableRow>
-                                                <TableCell colSpan={6} align="center" sx={{ py: 3 }}>
-                                                    <CircularProgress />
-                                                </TableCell>
-                                            </TableRow>
-                                        ) : auditLogs.length === 0 ? (
-                                            <TableRow>
-                                                <TableCell colSpan={6} align="center" sx={{ py: 3 }}>
-                                                    <Typography color="text.secondary">
-                                                        No audit logs found
+                        {/* Audit Log - Mobile Cards / Desktop Table */}
+                        {auditLoading ? (
+                            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                                <CircularProgress />
+                            </Box>
+                        ) : auditLogs.length === 0 ? (
+                            <Paper sx={{ p: 4, borderRadius: 2, textAlign: 'center' }}>
+                                <HistoryIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 1 }} />
+                                <Typography color="text.secondary">No audit logs found</Typography>
+                            </Paper>
+                        ) : isMobile ? (
+                            /* Mobile Card View */
+                            <Stack spacing={1.5}>
+                                {auditLogs.map((log) => (
+                                    <Paper
+                                        key={log._id}
+                                        sx={{
+                                            p: 2,
+                                            borderRadius: 2,
+                                            borderLeft: 4,
+                                            borderColor: `${getActionColor(log.action)}.main`,
+                                            cursor: 'pointer',
+                                            transition: 'all 0.2s ease',
+                                            '&:active': { transform: 'scale(0.98)' },
+                                        }}
+                                        onClick={() => viewAuditDetails(log)}
+                                    >
+                                        <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+                                            <Box flex={1} mr={1}>
+                                                <Stack direction="row" spacing={1} alignItems="center" mb={0.5}>
+                                                    <Chip
+                                                        label={log.action}
+                                                        size="small"
+                                                        color={getActionColor(log.action)}
+                                                        sx={{ fontSize: '0.72rem', height: 22 }}
+                                                    />
+                                                    <Chip
+                                                        label={log.entity}
+                                                        size="small"
+                                                        variant="outlined"
+                                                        sx={{ fontSize: '0.72rem', height: 22 }}
+                                                    />
+                                                </Stack>
+                                                <Typography variant="body2" fontWeight={500} sx={{ mb: 0.5 }}>
+                                                    {log.description}
+                                                </Typography>
+                                                <Stack direction="row" spacing={2}>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        @{log.performedByUsername}
                                                     </Typography>
-                                                </TableCell>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        {formatDate(log.timestamp)}
+                                                    </Typography>
+                                                </Stack>
+                                            </Box>
+                                            <ChevronRightIcon color="action" fontSize="small" />
+                                        </Stack>
+                                    </Paper>
+                                ))}
+                                <TablePagination
+                                    component="div"
+                                    count={totalAuditLogs}
+                                    page={auditPage}
+                                    onPageChange={handleAuditPageChange}
+                                    rowsPerPage={auditRowsPerPage}
+                                    onRowsPerPageChange={handleAuditRowsPerPageChange}
+                                    rowsPerPageOptions={[10, 20, 50]}
+                                    sx={{ bgcolor: 'background.paper', borderRadius: 2, mt: 1 }}
+                                />
+                            </Stack>
+                        ) : (
+                            /* Desktop Table View */
+                            <Paper sx={{ borderRadius: 2 }}>
+                                <TableContainer>
+                                    <Table>
+                                        <TableHead>
+                                            <TableRow>
+                                                <TableCell>Timestamp</TableCell>
+                                                <TableCell>User</TableCell>
+                                                <TableCell>Action</TableCell>
+                                                <TableCell>Entity</TableCell>
+                                                <TableCell>Description</TableCell>
+                                                <TableCell align="center">Details</TableCell>
                                             </TableRow>
-                                        ) : (
-                                            auditLogs.map((log) => (
+                                        </TableHead>
+                                        <TableBody>
+                                            {auditLogs.map((log) => (
                                                 <TableRow key={log._id} hover>
                                                     <TableCell>
                                                         <Stack direction="row" spacing={1} alignItems="center">
                                                             <TimeIcon fontSize="small" color="action" />
-                                                            <Typography variant="body2">
-                                                                {formatDate(log.timestamp)}
-                                                            </Typography>
+                                                            <Typography variant="body2">{formatDate(log.timestamp)}</Typography>
                                                         </Stack>
                                                     </TableCell>
                                                     <TableCell>
                                                         <Stack direction="row" spacing={1} alignItems="center">
                                                             <PersonIcon fontSize="small" color="action" />
                                                             <Box>
-                                                                <Typography variant="body2">
-                                                                    {log.performedByUsername}
-                                                                </Typography>
-                                                                <Typography variant="caption" color="text.secondary">
-                                                                    {log.performedByRole}
-                                                                </Typography>
+                                                                <Typography variant="body2">{log.performedByUsername}</Typography>
+                                                                <Typography variant="caption" color="text.secondary">{log.performedByRole}</Typography>
                                                             </Box>
                                                         </Stack>
                                                     </TableCell>
                                                     <TableCell>
-                                                        <Chip
-                                                            label={log.action}
-                                                            size="small"
-                                                            color={getActionColor(log.action)}
-                                                        />
+                                                        <Chip label={log.action} size="small" color={getActionColor(log.action)} />
                                                     </TableCell>
                                                     <TableCell>
                                                         <Stack direction="row" spacing={1} alignItems="center">
@@ -1134,36 +1388,31 @@ const Profile = () => {
                                                         </Stack>
                                                     </TableCell>
                                                     <TableCell>
-                                                        <Typography variant="body2" noWrap sx={{ maxWidth: 300 }}>
-                                                            {log.description}
-                                                        </Typography>
+                                                        <Typography variant="body2" noWrap sx={{ maxWidth: 300 }}>{log.description}</Typography>
                                                     </TableCell>
                                                     <TableCell align="center">
                                                         <Tooltip title="View Details">
-                                                            <IconButton
-                                                                size="small"
-                                                                onClick={() => viewAuditDetails(log)}
-                                                            >
+                                                            <IconButton size="small" onClick={() => viewAuditDetails(log)}>
                                                                 <SearchIcon />
                                                             </IconButton>
                                                         </Tooltip>
                                                     </TableCell>
                                                 </TableRow>
-                                            ))
-                                        )}
-                                    </TableBody>
-                                </Table>
-                            </TableContainer>
-                            <TablePagination
-                                component="div"
-                                count={totalAuditLogs}
-                                page={auditPage}
-                                onPageChange={handleAuditPageChange}
-                                rowsPerPage={auditRowsPerPage}
-                                onRowsPerPageChange={handleAuditRowsPerPageChange}
-                                rowsPerPageOptions={[10, 20, 50, 100]}
-                            />
-                        </Paper>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </TableContainer>
+                                <TablePagination
+                                    component="div"
+                                    count={totalAuditLogs}
+                                    page={auditPage}
+                                    onPageChange={handleAuditPageChange}
+                                    rowsPerPage={auditRowsPerPage}
+                                    onRowsPerPageChange={handleAuditRowsPerPageChange}
+                                    rowsPerPageOptions={[10, 20, 50, 100]}
+                                />
+                            </Paper>
+                        )}
 
                         {/* Audit Detail Dialog */}
                         <Dialog
@@ -1288,6 +1537,30 @@ const Profile = () => {
                                 <Button onClick={() => setAuditDetailDialogOpen(false)}>Close</Button>
                             </DialogActions>
                         </Dialog>
+                        {/* Bottom Jump Navigation - Audit Trail */}
+                        <Paper sx={{ p: 2, borderRadius: 2, mt: 2, bgcolor: 'action.hover' }}>
+                            <Stack direction="row" justifyContent="space-between" alignItems="center">
+                                <Button
+                                    size="small"
+                                    startIcon={<ArrowBackIcon />}
+                                    onClick={() => changeTab(0)}
+                                    sx={{ textTransform: 'none' }}
+                                >
+                                    ← Profile
+                                </Button>
+                                <Typography variant="caption" color="text.secondary" sx={{ display: { xs: 'none', sm: 'block' } }}>
+                                    Audit Trail
+                                </Typography>
+                                <Button
+                                    size="small"
+                                    endIcon={<ArrowForwardIcon />}
+                                    onClick={() => changeTab(2)}
+                                    sx={{ textTransform: 'none' }}
+                                >
+                                    Reports →
+                                </Button>
+                            </Stack>
+                        </Paper>
                     </Box>
                 )}
 
@@ -1697,6 +1970,338 @@ const Profile = () => {
                                     startIcon={<DownloadIcon />}
                                 >
                                     Generate Report
+                                </Button>
+                            </DialogActions>
+                        </Dialog>
+                        {/* Bottom Jump Navigation - Reports */}
+                        <Paper sx={{ p: 2, borderRadius: 2, mt: 2, bgcolor: 'action.hover' }}>
+                            <Stack direction="row" justifyContent="space-between" alignItems="center">
+                                <Button
+                                    size="small"
+                                    startIcon={<ArrowBackIcon />}
+                                    onClick={() => changeTab(1)}
+                                    sx={{ textTransform: 'none' }}
+                                >
+                                    ← Audit Trail
+                                </Button>
+                                <Typography variant="caption" color="text.secondary" sx={{ display: { xs: 'none', sm: 'block' } }}>
+                                    Reports
+                                </Typography>
+                                {user?.role === 'admin' && (
+                                    <Button
+                                        size="small"
+                                        endIcon={<ArrowForwardIcon />}
+                                        onClick={() => changeTab(3)}
+                                        color="error"
+                                        sx={{ textTransform: 'none' }}
+                                    >
+                                        Reset & System →
+                                    </Button>
+                                )}
+                            </Stack>
+                        </Paper>
+                    </Box>
+                )}
+
+                {/* Reset & System Tab Content */}
+                {activeTab === 3 && user?.role === 'admin' && (
+                    <Box>
+                        {/* Database Stats */}
+                        <Paper sx={{ p: 3, borderRadius: 2, mb: 3 }}>
+                            <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
+                                <Stack direction="row" spacing={1.5} alignItems="center">
+                                    <StorageIcon color="primary" />
+                                    <Typography variant="h6" fontWeight={600}>Current Database Records</Typography>
+                                </Stack>
+                                <Tooltip title="Refresh counts">
+                                    <IconButton size="small" onClick={fetchDatabaseStats} disabled={dbStatsLoading}>
+                                        <RefreshIcon fontSize="small" />
+                                    </IconButton>
+                                </Tooltip>
+                            </Stack>
+
+                            {dbStatsLoading ? (
+                                <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+                                    <CircularProgress />
+                                </Box>
+                            ) : (
+                                <Grid container spacing={2}>
+                                    {[
+                                        { label: 'Orders', count: dbStats?.orders ?? '–', icon: <ShoppingCartIcon />, color: 'primary' },
+                                        { label: 'Products', count: dbStats?.products ?? '–', icon: <InventoryIcon />, color: 'success' },
+                                        { label: 'Customers', count: dbStats?.customers ?? '–', icon: <PeopleIcon />, color: 'info' },
+                                        { label: 'Audit Logs', count: dbStats?.auditLogs ?? '–', icon: <HistoryIcon />, color: 'warning' },
+                                    ].map((stat) => (
+                                        <Grid item xs={6} sm={3} key={stat.label}>
+                                            <Paper
+                                                variant="outlined"
+                                                sx={{
+                                                    p: 2,
+                                                    textAlign: 'center',
+                                                    borderRadius: 2,
+                                                    borderColor: `${stat.color}.main`,
+                                                    background: `linear-gradient(135deg, transparent 60%, ${stat.color === 'primary' ? '#e3f2fd' : stat.color === 'success' ? '#e8f5e9' : stat.color === 'info' ? '#e1f5fe' : '#fff8e1'} 100%)`,
+                                                }}
+                                            >
+                                                <Box sx={{ color: `${stat.color}.main`, mb: 0.5 }}>{stat.icon}</Box>
+                                                <Typography variant="h4" fontWeight={700} color={`${stat.color}.main`}>
+                                                    {stat.count}
+                                                </Typography>
+                                                <Typography variant="caption" color="text.secondary">{stat.label}</Typography>
+                                            </Paper>
+                                        </Grid>
+                                    ))}
+                                </Grid>
+                            )}
+                        </Paper>
+
+                        {/* Safety Backup */}
+                        <Paper sx={{ p: 3, borderRadius: 2, mb: 3, border: '1px solid', borderColor: 'info.light' }}>
+                            <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={2}>
+                                <Stack direction="row" spacing={1.5} alignItems="flex-start">
+                                    <BackupIcon color="info" sx={{ mt: 0.25 }} />
+                                    <Box>
+                                        <Typography variant="subtitle1" fontWeight={600}>Create Database Snapshot</Typography>
+                                        <Typography variant="body2" color="text.secondary">
+                                            Save a full snapshot of the current database before making any changes.
+                                        </Typography>
+                                    </Box>
+                                </Stack>
+                                <Button
+                                    variant="outlined"
+                                    color="info"
+                                    startIcon={backupLoading ? <CircularProgress size={16} color="inherit" /> : <BackupIcon />}
+                                    onClick={handleManualBackup}
+                                    disabled={backupLoading}
+                                    sx={{ whiteSpace: 'nowrap', minWidth: 160 }}
+                                >
+                                    {backupLoading ? 'Saving…' : 'Backup Now'}
+                                </Button>
+                            </Stack>
+                        </Paper>
+
+                        {/* Danger Zone – Reset */}
+                        <Paper
+                            sx={{
+                                p: 3,
+                                borderRadius: 2,
+                                border: '2px solid',
+                                borderColor: 'error.main',
+                                background: 'linear-gradient(135deg, transparent 70%, rgba(211,47,47,0.04) 100%)',
+                            }}
+                        >
+                            <Stack direction="row" spacing={1.5} alignItems="flex-start" mb={2}>
+                                <WarningAmberIcon color="error" sx={{ mt: 0.25, fontSize: 28 }} />
+                                <Box>
+                                    <Typography variant="h6" fontWeight={700} color="error.main">
+                                        Danger Zone – Reset All Test Data
+                                    </Typography>
+                                    <Typography variant="body2" color="text.secondary">
+                                        This will permanently delete all orders, products, customers, and audit logs.
+                                        Your admin account will be preserved.
+                                    </Typography>
+                                </Box>
+                            </Stack>
+
+                            <Alert severity="error" sx={{ mb: 2 }}>
+                                <strong>This action cannot be undone.</strong> All test data will be permanently erased.
+                                We strongly recommend creating a backup first.
+                            </Alert>
+
+                            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} flexWrap="wrap">
+                                <Box sx={{ flex: 1, minWidth: 200 }}>
+                                    <Typography variant="caption" color="text.secondary" fontWeight={600} display="block" mb={0.5}>
+                                        What will be deleted:
+                                    </Typography>
+                                    {[
+                                        `${dbStats?.orders ?? 0} Orders`,
+                                        `${dbStats?.products ?? 0} Products`,
+                                        `${dbStats?.customers ?? 0} Customers`,
+                                        `${dbStats?.auditLogs ?? 0} Audit Log entries`,
+                                    ].map((item) => (
+                                        <Stack key={item} direction="row" spacing={0.5} alignItems="center">
+                                            <DeleteForeverIcon sx={{ fontSize: 14 }} color="error" />
+                                            <Typography variant="body2">{item}</Typography>
+                                        </Stack>
+                                    ))}
+                                </Box>
+                                <Box sx={{ flex: 1, minWidth: 200 }}>
+                                    <Typography variant="caption" color="text.secondary" fontWeight={600} display="block" mb={0.5}>
+                                        What will be preserved:
+                                    </Typography>
+                                    {['All Admin accounts', 'App configuration', 'Your session'].map((item) => (
+                                        <Stack key={item} direction="row" spacing={0.5} alignItems="center">
+                                            <CheckCircleOutlineIcon sx={{ fontSize: 14 }} color="success" />
+                                            <Typography variant="body2">{item}</Typography>
+                                        </Stack>
+                                    ))}
+                                </Box>
+                            </Stack>
+
+                            <Divider sx={{ my: 2.5 }} />
+
+                            <Button
+                                variant="contained"
+                                color="error"
+                                size="large"
+                                startIcon={<DeleteForeverIcon />}
+                                onClick={() => { setResetDialogOpen(true); fetchDatabaseStats(); }}
+                                fullWidth
+                                sx={{
+                                    py: 1.5,
+                                    fontWeight: 700,
+                                    background: 'linear-gradient(135deg, #c62828 0%, #e53935 100%)',
+                                    boxShadow: '0 4px 20px rgba(211,47,47,0.4)',
+                                    '&:hover': {
+                                        background: 'linear-gradient(135deg, #b71c1c 0%, #c62828 100%)',
+                                        boxShadow: '0 6px 24px rgba(211,47,47,0.55)',
+                                    }
+                                }}
+                            >
+                                Reset All Test Data
+                            </Button>
+                        </Paper>
+
+                        {/* Bottom Jump Navigation - System */}
+                        <Paper sx={{ p: 2, borderRadius: 2, mt: 2, bgcolor: 'action.hover' }}>
+                            <Stack direction="row" justifyContent="space-between" alignItems="center">
+                                <Button
+                                    size="small"
+                                    startIcon={<ArrowBackIcon />}
+                                    onClick={() => changeTab(2)}
+                                    sx={{ textTransform: 'none' }}
+                                >
+                                    ← Reports
+                                </Button>
+                                <Typography variant="caption" color="text.secondary" sx={{ display: { xs: 'none', sm: 'block' } }}>
+                                    Reset & System
+                                </Typography>
+                                <Button
+                                    size="small"
+                                    endIcon={<PersonIcon fontSize="small" />}
+                                    onClick={() => changeTab(0)}
+                                    sx={{ textTransform: 'none' }}
+                                >
+                                    Back to Profile →
+                                </Button>
+                            </Stack>
+                        </Paper>
+
+                        {/* Reset Confirmation Dialog */}
+                        <Dialog
+                            open={resetDialogOpen}
+                            onClose={() => { if (!resetLoading) { setResetDialogOpen(false); setResetConfirmationText(''); } }}
+                            maxWidth="sm"
+                            fullWidth
+                            PaperProps={{ sx: { borderTop: '4px solid', borderColor: 'error.main', borderRadius: 2 } }}
+                        >
+                            <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1 }}>
+                                <Stack direction="row" spacing={1.5} alignItems="center">
+                                    <WarningAmberIcon color="error" />
+                                    <Typography variant="h6" fontWeight={700} color="error.main">
+                                        Confirm Database Reset
+                                    </Typography>
+                                </Stack>
+                                <IconButton onClick={() => { if (!resetLoading) { setResetDialogOpen(false); setResetConfirmationText(''); } }} disabled={resetLoading}>
+                                    <CloseIcon />
+                                </IconButton>
+                            </DialogTitle>
+
+                            <DialogContent>
+                                <Alert severity="error" sx={{ mb: 2 }}>
+                                    This will permanently delete all test data and cannot be reversed.
+                                </Alert>
+
+                                <Typography variant="body2" sx={{ mb: 2 }}>
+                                    The following will be permanently deleted:
+                                </Typography>
+                                <Grid container spacing={1} sx={{ mb: 2 }}>
+                                    {[
+                                        { label: 'Orders', value: dbStats?.orders ?? 0, color: 'primary' },
+                                        { label: 'Products', value: dbStats?.products ?? 0, color: 'success' },
+                                        { label: 'Customers', value: dbStats?.customers ?? 0, color: 'info' },
+                                        { label: 'Audit Logs', value: dbStats?.auditLogs ?? 0, color: 'warning' },
+                                    ].map((s) => (
+                                        <Grid item xs={6} key={s.label}>
+                                            <Paper variant="outlined" sx={{ p: 1.5, textAlign: 'center', borderRadius: 1.5, borderColor: `${s.color}.light` }}>
+                                                <Typography variant="h5" fontWeight={700} color={`${s.color}.main`}>{s.value}</Typography>
+                                                <Typography variant="caption" color="text.secondary">{s.label}</Typography>
+                                            </Paper>
+                                        </Grid>
+                                    ))}
+                                </Grid>
+
+                                <FormControlLabel
+                                    control={
+                                        <Checkbox
+                                            checked={resetBackupOption}
+                                            onChange={(e) => setResetBackupOption(e.target.checked)}
+                                            color="primary"
+                                            disabled={resetLoading}
+                                        />
+                                    }
+                                    label={
+                                        <Typography variant="body2">
+                                            <strong>Create safety backup</strong> before resetting (recommended)
+                                        </Typography>
+                                    }
+                                    sx={{ mb: 1, display: 'flex' }}
+                                />
+
+                                <FormControlLabel
+                                    control={
+                                        <Checkbox
+                                            checked={resetUsersOption}
+                                            onChange={(e) => setResetUsersOption(e.target.checked)}
+                                            color="error"
+                                            disabled={resetLoading}
+                                        />
+                                    }
+                                    label={
+                                        <Typography variant="body2" color="error.main">
+                                            Also delete non-admin user accounts
+                                        </Typography>
+                                    }
+                                    sx={{ mb: 2.5, display: 'flex' }}
+                                />
+
+                                <Typography variant="body2" sx={{ mb: 1 }}>
+                                    To confirm, type <strong>RESET</strong> in the field below:
+                                </Typography>
+                                <TextField
+                                    fullWidth
+                                    size="small"
+                                    placeholder='Type RESET to confirm'
+                                    value={resetConfirmationText}
+                                    onChange={(e) => setResetConfirmationText(e.target.value.toUpperCase())}
+                                    disabled={resetLoading}
+                                    error={resetConfirmationText.length > 0 && resetConfirmationText !== 'RESET'}
+                                    helperText={resetConfirmationText.length > 0 && resetConfirmationText !== 'RESET' ? 'Type exactly RESET (all caps)' : ''}
+                                    InputProps={{
+                                        sx: { fontFamily: 'monospace', fontWeight: 700, letterSpacing: 2 }
+                                    }}
+                                />
+                            </DialogContent>
+
+                            <DialogActions sx={{ px: 3, pb: 3, gap: 1 }}>
+                                <Button
+                                    variant="outlined"
+                                    onClick={() => { setResetDialogOpen(false); setResetConfirmationText(''); }}
+                                    disabled={resetLoading}
+                                    fullWidth
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    variant="contained"
+                                    color="error"
+                                    startIcon={resetLoading ? <CircularProgress size={16} color="inherit" /> : <DeleteForeverIcon />}
+                                    onClick={handleResetDatabase}
+                                    disabled={resetConfirmationText !== 'RESET' || resetLoading}
+                                    fullWidth
+                                    sx={{ py: 1.2, fontWeight: 700 }}
+                                >
+                                    {resetLoading ? 'Resetting Database…' : 'Yes, Delete All Test Data'}
                                 </Button>
                             </DialogActions>
                         </Dialog>
