@@ -297,7 +297,7 @@ const QuickOrder = () => {
   return (
     <Box sx={{
       minHeight: '100vh',
-      bgcolor: '#f5f5f5',
+      bgcolor: 'background.default',
       display: 'flex',
       flexDirection: 'column'
     }}>
@@ -307,8 +307,9 @@ const QuickOrder = () => {
         color="default"
         elevation={0}
         sx={{
-          bgcolor: 'white',
-          borderBottom: '1px solid #e0e0e0'
+          bgcolor: 'background.paper',
+          borderBottom: '1px solid',
+          borderColor: 'divider'
         }}
       >
         <Container maxWidth="sm" disableGutters>
@@ -345,7 +346,8 @@ const QuickOrder = () => {
             sx={{
               p: isMobile ? 2 : 3,
               borderRadius: isMobile ? 0 : 2,
-              borderBottom: isMobile ? '1px solid #e0e0e0' : 'none'
+              borderBottom: isMobile ? '1px solid' : 'none',
+              borderColor: isMobile ? 'divider' : 'transparent'
             }}
             elevation={isMobile ? 0 : 1}
           >
@@ -430,10 +432,11 @@ const QuickOrder = () => {
                         sx={{
                           p: 2,
                           cursor: 'pointer',
-                          borderBottom: '1px solid #e0e0e0',
+                          borderBottom: '1px solid',
+                          borderColor: 'divider',
                           '&:last-child': { borderBottom: 'none' },
-                          '&:hover': { bgcolor: '#f5f5f5' },
-                          '&:active': { bgcolor: '#eeeeee' }
+                          '&:hover': { bgcolor: 'action.hover' },
+                          '&:active': { bgcolor: 'action.selected' }
                         }}
                       >
                         <Typography variant="body1" fontWeight="medium">
@@ -479,7 +482,8 @@ const QuickOrder = () => {
             sx={{
               p: isMobile ? 2 : 3,
               borderRadius: isMobile ? 0 : 2,
-              borderBottom: isMobile ? '1px solid #e0e0e0' : 'none'
+              borderBottom: isMobile ? '1px solid' : 'none',
+              borderColor: isMobile ? 'divider' : 'transparent'
             }}
             elevation={isMobile ? 0 : 1}
           >
@@ -518,9 +522,10 @@ const QuickOrder = () => {
                   key={index}
                   sx={{
                     p: 2,
-                    bgcolor: '#fafafa',
+                    bgcolor: theme.palette.mode === 'dark' ? alpha(theme.palette.common.white, 0.04) : '#fafafa',
                     borderRadius: 2,
-                    border: '1px solid #e0e0e0'
+                    border: '1px solid',
+                    borderColor: 'divider'
                   }}
                 >
                   {/* Product Selection */}
@@ -563,10 +568,10 @@ const QuickOrder = () => {
                               sx={{
                                 p: 1.5,
                                 cursor: 'pointer',
-                                borderBottom: '1px solid #e0e0e0',
-                                '&:last-child': { borderBottom: 'none' },
-                                '&:hover': { bgcolor: '#f5f5f5' },
-                                '&:active': { bgcolor: '#eeeeee' },
+                                borderBottom: '1px solid',
+                                borderColor: 'divider',
+                                '&:hover': { bgcolor: 'action.hover' },
+                                '&:active': { bgcolor: 'action.selected' },
                                 display: 'flex',
                                 justifyContent: 'space-between',
                                 alignItems: 'center'
@@ -750,7 +755,7 @@ const QuickOrder = () => {
             sx={{
               p: isMobile ? 2 : 3,
               borderRadius: isMobile ? 0 : 2,
-              bgcolor: '#fafafa'
+              bgcolor: theme.palette.mode === 'dark' ? alpha(theme.palette.common.white, 0.04) : '#fafafa'
             }}
             elevation={isMobile ? 0 : 1}
           >
@@ -800,7 +805,8 @@ const QuickOrder = () => {
                       justifyContent: 'space-between',
                       mb: 1.5,
                       pb: 1.5,
-                      borderBottom: index < totalItems - 1 ? '1px solid #e0e0e0' : 'none'
+                      borderBottom: index < totalItems - 1 ? '1px solid' : 'none',
+                      borderColor: index < totalItems - 1 ? 'divider' : 'transparent'
                     }}
                   >
                     <Box sx={{ flex: 1 }}>

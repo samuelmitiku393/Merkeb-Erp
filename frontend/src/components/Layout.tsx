@@ -7,10 +7,13 @@ import {
     AppBar,
     Toolbar,
     Typography,
+    IconButton,
+    Tooltip,
     useScrollTrigger,
     useTheme,
     useMediaQuery,
-    Chip
+    Chip,
+    alpha
 } from "@mui/material";
 import {
     Dashboard as DashboardIcon,
@@ -18,10 +21,13 @@ import {
     AddCircle as QuickOrderIcon,
     Inventory as InventoryIcon,
     People as PeopleIcon,
-    Person as ProfileIcon
+    Person as ProfileIcon,
+    Brightness4 as DarkModeIcon,
+    Brightness7 as LightModeIcon
 } from "@mui/icons-material";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useColorMode } from "../context/colorModeContext";
 
 interface LayoutProps {
     children: React.ReactNode;
@@ -39,6 +45,7 @@ const Layout = ({ children }: LayoutProps) => {
     const { user, logout: _logout } = useAuth();
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+    const { mode, toggleColorMode } = useColorMode();
 
     const [value, setValue] = useState<string>(location.pathname);
 
@@ -78,7 +85,7 @@ const Layout = ({ children }: LayoutProps) => {
                     borderColor: 'divider',
                     backdropFilter: 'blur(8px)',
                     backgroundColor: scrollTrigger
-                        ? 'rgba(255, 255, 255, 0.95)'
+                        ? alpha(theme.palette.background.paper, 0.95)
                         : 'background.paper'
                 }}
             >
@@ -98,6 +105,21 @@ const Layout = ({ children }: LayoutProps) => {
                         </Typography>
 
                     </Box>
+                    <Tooltip title={mode === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}>
+                        <IconButton
+                            onClick={toggleColorMode}
+                            color="inherit"
+                            aria-label="toggle light/dark mode"
+                            size={isMobile ? 'small' : 'medium'}
+                            sx={{
+                                border: '1px solid',
+                                borderColor: 'divider',
+                                borderRadius: '50%'
+                            }}
+                        >
+                            {mode === 'light' ? <DarkModeIcon fontSize="small" /> : <LightModeIcon fontSize="small" />}
+                        </IconButton>
+                    </Tooltip>
                 </Toolbar>
             </AppBar>
 
@@ -123,7 +145,7 @@ const Layout = ({ children }: LayoutProps) => {
                     borderTop: '1px solid',
                     borderColor: 'divider',
                     backdropFilter: 'blur(8px)',
-                    backgroundColor: 'rgba(255, 255, 255, 0.95)'
+                    backgroundColor: alpha(theme.palette.background.paper, 0.95)
                 }}
                 elevation={3}
             >

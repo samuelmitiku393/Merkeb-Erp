@@ -3,6 +3,8 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import { ColorModeProvider } from "./context/ThemeContext";
+import { useColorMode } from "./context/colorModeContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
 import Login from "./pages/Login";
@@ -12,40 +14,31 @@ import QuickOrder from "./pages/QuickOrder";
 import Inventory from "./pages/Inventory";
 import CustomersPage from "./pages/CustomersPage";
 import Profile from "./pages/Profile";
-import {
-  isTelegramWebApp,
-  notifyReady,
-  expandViewport,
-  getColorScheme,
-  getThemeParams,
-} from "./services/telegram";
+import { isTelegramWebApp, notifyReady, expandViewport } from "./services/telegram";
 
-// ─── Build MUI theme – merges Telegram theme params when inside TMA ──────────
-const buildTheme = () => {
-  const inTelegram = isTelegramWebApp();
-  const tgParams = inTelegram ? getThemeParams() : {};
-  const colorScheme = inTelegram ? getColorScheme() : 'light';
-  const isDark = colorScheme === 'dark';
+// ─── Build MUI theme – independent from Telegram's color scheme ─────────────
+const buildTheme = (mode: 'light' | 'dark') => {
+  const isDark = mode === 'dark';
 
   return createTheme({
     palette: {
-      mode: isDark ? 'dark' : 'light',
+      mode,
       primary: {
-        // Use Telegram button colour if available, otherwise our brand blue
-        main: tgParams.button_color ?? '#1976d2',
-        contrastText: tgParams.button_text_color ?? '#ffffff',
+        main: isDark ? '#64b5f6' : '#1976d2',
+        contrastText: '#ffffff',
       },
       secondary: {
-        main: '#dc004e',
+        main: isDark ? '#f06292' : '#dc004e',
       },
       background: {
-        default: tgParams.bg_color ?? (isDark ? '#1a1a2e' : '#f5f5f5'),
-        paper: tgParams.secondary_bg_color ?? (isDark ? '#16213e' : '#ffffff'),
+        default: isDark ? '#12121d' : '#f5f5f5',
+        paper: isDark ? '#1c1c2e' : '#ffffff',
       },
       text: {
-        primary: tgParams.text_color ?? (isDark ? '#ffffff' : '#212121'),
-        secondary: tgParams.hint_color ?? (isDark ? '#b0b0b0' : '#757575'),
+        primary: isDark ? '#f5f5f7' : '#212121',
+        secondary: isDark ? '#b0b0ba' : '#757575',
       },
+      divider: isDark ? 'rgba(255, 255, 255, 0.12)' : undefined,
     },
     typography: {
       fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
@@ -140,8 +133,9 @@ const AppRoutes = () => {
 
 // ─── Root App ─────────────────────────────────────────────────────────────────
 function App() {
-  // Build theme once (re-computed if Telegram params are available)
-  const theme = useMemo(() => buildTheme(), []);
+  const { mode } = useColorMode();
+  // Build theme once per selected mode
+  const theme = useMemo(() => buildTheme(mode), [mode]);
 
   useEffect(() => {
     if (isTelegramWebApp()) {
@@ -164,4 +158,12 @@ function App() {
   );
 }
 
-export default App;
+function Root() {
+  return (
+    <ColorModeProvider>
+      <App />
+    </ColorModeProvider>
+  );
+}
+
+export default Root;

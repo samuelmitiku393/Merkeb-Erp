@@ -48,6 +48,7 @@ import {
     LinearProgress,
     Checkbox,
     FormControlLabel,
+    alpha,
 } from "@mui/material";
 import {
     Person as PersonIcon,
@@ -786,9 +787,7 @@ const Profile = () => {
                         zIndex: 100,
                         bgcolor: 'background.paper',
                         backdropFilter: 'blur(16px)',
-                        backgroundColor: theme.palette.mode === 'dark' 
-                            ? 'rgba(22, 33, 62, 0.94)' 
-                            : 'rgba(255, 255, 255, 0.94)',
+                        backgroundColor: alpha(theme.palette.background.paper, 0.94),
                         borderBottom: '1px solid',
                         borderColor: 'divider',
                         mx: { xs: -2, sm: -3 },
